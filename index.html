@@ -769,6 +769,7 @@
       const [connErr, setConnErr] = useState("");
       const [openStage, setOpenStage] = useState(0);
       const [showPw, setShowPw] = useState(false);
+      const [showPaste, setShowPaste] = useState(false);
       const unsubRef = useRef(null);
 
       useEffect(() => () => { if (unsubRef.current) unsubRef.current(); }, []);
@@ -807,28 +808,33 @@
           </div>
           {showPw && <ChangePwModal onClose={() => setShowPw(false)} />}
 
-          {/* 접속/취합 컨트롤 */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4">
-              <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">실시간 자동 수합 (Firebase)</div>
-              {AGG_ENABLED ? (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className={"inline-flex items-center gap-2 text-[14px] " + (connected ? "text-[#34D399]" : "text-[#8B98A5]")}>
-                    <span className={"w-2.5 h-2.5 rounded-full " + (connected ? "bg-[#34D399] live-dot" : "bg-[#8B98A5]")} />
-                    {connected ? "연결됨 · 학생이 제출하면 자동으로 나타납니다" : "연결 중..."}
-                  </span>
-                  {!connected && <button onClick={connect} className="rounded-lg border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-3 py-1.5 text-[13px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors">다시 연결</button>}
+          {/* 접속/취합 컨트롤 (A안: 자동 수합이 기본, 결과 코드는 필요할 때만) */}
+          <div className="space-y-4">
+            {AGG_ENABLED && (
+              <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-1.5">실시간 자동 수합 (Firebase)</div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className={"inline-flex items-center gap-2 text-[14px] " + (connected ? "text-[#34D399]" : "text-[#8B98A5]")}>
+                      <span className={"w-2.5 h-2.5 rounded-full " + (connected ? "bg-[#34D399] live-dot" : "bg-[#8B98A5]")} />
+                      {connected ? "연결됨 · 학생이 제출하면 자동으로 나타납니다" : "연결 중..."}
+                    </span>
+                    {!connected && <button onClick={connect} className="rounded-lg border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-3 py-1.5 text-[13px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors">다시 연결</button>}
+                  </div>
+                  {connErr && <p className="mt-2 text-[12px] text-[#F87171] leading-snug">{connErr}</p>}
                 </div>
-              ) : (<p className="text-[13px] leading-relaxed text-[#8B98A5]">Firebase 설정이 없어 실시간 수합은 꺼져 있습니다. 오른쪽 '결과 코드 붙여넣기'로 취합하세요.</p>)}
-              {connErr && <p className="mt-2 text-[12px] text-[#F87171] leading-snug">{connErr}</p>}
-            </div>
-            <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4">
-              <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">결과 코드 붙여넣기 (활동 종료 후 수합)</div>
-              <div className="space-y-2">
-                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder="모둠이 보낸 DGK1:... 코드를 붙여넣기.&#10;여러 모둠이면 줄바꿈으로 나열해 한 번에 추가할 수 있어요." className="w-full rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-3 py-2.5 text-[13px] font-mono text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none focus:border-[#22D3EE] resize-none" />
-                <button onClick={addPasted} className="w-full rounded-xl border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-4 py-2.5 text-[14px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors">모둠 추가 (여러 개 가능)</button>
+                <button onClick={() => setShowPaste((v) => !v)} className="shrink-0 text-[12px] text-[#8B98A5] hover:text-[#22D3EE] transition-colors underline underline-offset-2">{showPaste ? "결과 코드 입력 닫기" : "결과 코드로 수동 추가"}</button>
               </div>
-            </div>
+            )}
+            {(showPaste || !!connErr || !AGG_ENABLED) && (
+              <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4">
+                <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">결과 코드 붙여넣기 {AGG_ENABLED ? "(제출 실패한 모둠 수동 추가)" : "(활동 종료 후 수합)"}</div>
+                <div className="space-y-2">
+                  <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder="모둠이 보낸 DGK1:... 코드를 붙여넣기.&#10;여러 모둠이면 줄바꿈으로 나열해 한 번에 추가할 수 있어요." className="w-full rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-3 py-2.5 text-[13px] font-mono text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none focus:border-[#22D3EE] resize-none" />
+                  <button onClick={addPasted} className="w-full rounded-xl border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-4 py-2.5 text-[14px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors">모둠 추가 (여러 개 가능)</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {groups.length === 0 ? (
@@ -901,9 +907,8 @@
               {err && <p className="text-[13px] text-[#F87171]" role="alert">비밀번호가 올바르지 않습니다.</p>}
               <button type="submit" className="w-full rounded-xl bg-[#22D3EE] px-5 py-3 text-[15px] font-semibold text-[#0A0E14] hover:bg-[#67E8F9] transition-colors">확인</button>
             </form>
-            <div className="mt-4 flex items-center justify-between text-[12px] text-[#8B98A5]">
+            <div className="mt-4 text-[12px] text-[#8B98A5]">
               <button onClick={onBack} className="hover:text-[#22D3EE]">← 학생 화면</button>
-              <span className="font-mono">초기 비밀번호: 0000</span>
             </div>
           </div>
         </main>
