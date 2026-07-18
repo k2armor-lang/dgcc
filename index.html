@@ -1,0 +1,895 @@
+<!doctype html>
+<!--
+  ============================================================================
+  디지털 게이트키퍼 (Digital Gatekeeper) — AI 시대의 진실 찾기
+  대한민국 고등학교 1~2학년 대상 교육용 단일 HTML 시뮬레이션
+  ----------------------------------------------------------------------------
+  ★ 교사용 가이드 ★
+  · 문제를 교체하려면 아래 STAGES 배열의 "텍스트"만 수정하세요. (그 아래 코드는 그대로)
+  · 모둠 활동 결과를 한 페이지에 모으려면(교사 대시보드) 아래 FIREBASE_CONFIG 에
+    Firebase 웹앱 설정을 붙여넣으세요. (설정법: 같은 폴더의 FIREBASE-SETUP.md 참고)
+    - 설정이 비어 있으면 취합 기능은 꺼지고, '결과 코드 붙여넣기'로만 취합할 수 있습니다.
+  · 등장 인물·단체·언론사·학술지는 전부 가상. 법령 조문/처벌 수위만 실제입니다.
+  · 학생 활동 상태는 브라우저에 저장하지 않습니다(메모리만). 취합만 Firebase(클라우드)를 씁니다.
+  ============================================================================
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>디지털 게이트키퍼 (Digital Gatekeeper)</title>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <script>
+    if (window.tailwind) {
+      tailwind.config = { theme: { extend: { fontFamily: {
+        sans: ['Pretendard', 'Pretendard Variable', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'D2Coding', 'monospace'],
+      } } } };
+    }
+    // Babel: classic 런타임(React.createElement)으로 변환(import 구문 방지)
+    if (window.Babel && Babel.availablePresets && Babel.availablePresets['react']) {
+      Babel.registerPreset('react-classic', { presets: [[Babel.availablePresets['react'], { runtime: 'classic' }]] });
+    }
+  </script>
+
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { background-color: #0A0E14; color: #E6EDF3; font-family: 'Pretendard','Pretendard Variable',system-ui,-apple-system,'Segoe UI','Malgun Gothic','맑은 고딕',sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+    .console-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 60;
+      background-image: repeating-linear-gradient(0deg, rgba(230,237,243,0.03) 0px, rgba(230,237,243,0.03) 1px, transparent 1px, transparent 3px), linear-gradient(rgba(34,211,238,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.02) 1px, transparent 1px);
+      background-size: 100% 3px, 44px 44px, 44px 44px; }
+    :focus-visible { outline: 2px solid #22D3EE; outline-offset: 2px; border-radius: 2px; }
+    :focus:not(:focus-visible) { outline: none; }
+    @keyframes floatUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-26px); } }
+    .floater { animation: floatUp 0.8s ease-out forwards; }
+    @keyframes segPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .seg-current { animation: segPulse 1.2s ease-in-out infinite; }
+    @keyframes scanMove { 0% { transform: translateY(-120%); } 100% { transform: translateY(320%); } }
+    .scan-line { animation: scanMove 0.8s linear infinite; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+    .blink { animation: blink 1s step-start infinite; }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .modal-in { animation: modalIn 0.22s ease-out; }
+    @keyframes livePulse { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+    .live-dot { animation: livePulse 1.4s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #0A0E14; }
+    ::-webkit-scrollbar-thumb { background: #1F2A37; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #22D3EE; }
+    input:-webkit-autofill, input:-webkit-autofill:focus { -webkit-text-fill-color: #E6EDF3; -webkit-box-shadow: 0 0 0 1000px #0A0E14 inset; transition: background-color 9999s ease-in-out 0s; }
+    #offline-fallback { position: fixed; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; z-index: 90; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="offline-fallback">
+    <div style="max-width:420px;border:1px solid #1F2A37;background:#131A24;border-radius:16px;padding:28px">
+      <div style="font-family:ui-monospace,Consolas,monospace;font-size:12px;letter-spacing:2px;color:#8B98A5">GATEKEEPER_OS · 오프라인</div>
+      <h1 style="font-size:20px;font-weight:700;color:#E6EDF3;margin:10px 0 6px">실행에 필요한 파일을 불러오지 못했습니다</h1>
+      <p style="font-size:15px;line-height:1.6;color:#8B98A5;margin:0">이 프로그램은 최초 실행 시 인터넷 연결이 필요합니다.<br />네트워크를 연결한 뒤 새로고침(F5) 해주세요.</p>
+    </div>
+  </div>
+
+  <script type="text/babel" data-presets="react-classic">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    /* =====================================================================
+       ▼▼▼ (1) 콘텐츠 데이터 — 교사는 이 배열의 "문자열"만 수정 ▼▼▼
+       ===================================================================== */
+    const STAGES = [
+      { id: 1, type: "video", verdict: "FAKE",
+        title: "서정원 의원 '청년예산은 표 사는 낭비' 발언 영상",
+        sourceLabel: "SNS 재게시 · 조회수 82만 · 원본 출처 미표기",
+        contentBody: "[속보 영상] 한빛당 서정원 의원이 어제 청년정책 토론회에서 '청년 지원 예산은 사실상 표를 사는 낭비'라고 말하는 45초짜리 영상이 SNS에서 확산 중이다. 영상 속 서 의원은 정면을 응시한 채 또박또박 해당 발언을 이어간다. 게시글에는 '이게 진짜 속마음' '실망했다'는 댓글 3천여 개가 달렸고 여러 커뮤니티로 빠르게 재게시되고 있다. 촬영 장소와 원본 출처는 어디에도 표기돼 있지 않다.",
+        toolkit: {
+          reverseSearch: { found: true, clue: "역방향 영상 검색 결과, 같은 배경·같은 정장 차림의 원본 연설이 3개월 전 '지역 창업 지원 간담회' 영상으로 존재. 원본에는 문제의 발언이 전혀 없고, 실제로는 청년 예산 확대를 지지하는 내용이었다." },
+          crossCheck:    { found: true, clue: "서 의원 공식 홈페이지·의정활동 속기록·주요 언론 어디에도 해당 발언 기록이 없다. 최초 게시 계정은 정치 풍자 성향의 익명 계정으로 확인됐다." },
+          aiTrace:       { found: true, clue: "입술 움직임과 음성이 미세하게 어긋나고, 특정 음절에서 치아 부분이 뭉개진다. 목소리의 억양 곡선이 부자연스럽게 평탄해 합성 음성의 특징을 보인다." },
+        },
+        laws: [
+          { article: "공직선거법 제250조 (허위사실공표죄)", desc: "당선·낙선을 목적으로 후보자에 관한 허위사실을 퍼뜨리는 행위.", penalty: "당선 목적 시 5년 이하 징역 또는 3천만 원 이하 벌금 (낙선 목적은 7년 이하 징역)." },
+          { article: "공직선거법 제82조의8 (딥페이크 이용 선거운동 금지)", desc: "선거일 전 90일부터 선거일까지 딥페이크 영상을 이용한 선거운동을 금지(2024년 시행).", penalty: "위반 시 7년 이하 징역 또는 1천만 원 이상 5천만 원 이하 벌금." },
+          { article: "정보통신망법 제70조 제2항 (거짓사실 명예훼손)", desc: "정보통신망에서 거짓 사실을 드러내 타인의 명예를 훼손하는 행위.", penalty: "7년 이하 징역, 10년 이하 자격정지 또는 5천만 원 이하 벌금." },
+        ],
+        emphasis: { tone: "warn", title: "'성적' 딥페이크가 아니어도 처벌됩니다", body: "이 사건은 성적 내용이 아니므로 성폭력처벌법 제14조의2가 아니라 공직선거법·정보통신망법이 적용됩니다. 딥페이크는 소재에 따라 적용 법률이 달라질 뿐, '처벌 안 되는' 딥페이크는 없습니다." },
+        feedback: {
+          why: "① 원본 연설 영상이 '다른 날짜·다른 발언'으로 실제 존재(짜깁기 원본 확인) ② 공식 계정·속기록·언론 어디에도 해당 발언 기록이 없음 ③ 입모양-음성 싱크 불일치와 평탄한 억양 등 합성 음성 흔적. 이 세 가지가 겹치면 '진짜 발언'이 아니라 조작 영상으로 판단해야 한다.",
+          ethics: "정치인의 하지 않은 말을 진짜처럼 만들어 퍼뜨리면, 유권자의 판단을 왜곡해 선거와 여론 자체를 조작하게 된다. '진짜처럼 보이는가'가 아니라 '누가 무슨 의도로 만들었는가'를 먼저 의심하는 것이 민주주의를 지키는 최소한의 태도다.",
+          law: "공직선거법 제250조(허위사실공표죄), 제82조의8(딥페이크 선거운동 금지), 정보통신망법 제70조 제2항(거짓사실 명예훼손)이 적용된다.",
+          reflection: "'영상이 존재한다'는 사실과 '그 발언이 진짜다'는 사실은 왜 전혀 다른 문제일까? 내가 이 영상의 공유 버튼을 누르기 직전에 확인했어야 할 단 하나는 무엇이었을까?",
+        },
+      },
+      { id: 2, type: "image", verdict: "FAKE",
+        title: "'세이렌 유나 열애설' 심야 목격 사진 2장",
+        sourceLabel: "SNS 최초 유포 · 리트윗 1만 2천 · 익명 신규 계정",
+        contentBody: "'세이렌 유나 열애설 터졌다'라는 제목으로 한 익명 계정이, 유나가 늦은 밤 한 남성과 함께 있는 사진 2장을 게시했다. 사진 속 유나는 평소 자주 착용하던 목걸이를 하고 있어 팬들 사이에서 '진짜 같다'는 반응이 나온다. 게시글은 하루 만에 리트윗 1만 2천 회를 넘겼고, 여러 팬 커뮤니티와 단체 채팅방으로 캡처가 빠르게 퍼지고 있다. 소속사는 아직 공식 입장을 내지 않았다.",
+        toolkit: {
+          reverseSearch: { found: true, clue: "이미지 역검색 결과, 배경과 남성의 구도가 6개월 전 한 여행 블로그에 올라온 사진과 완전히 동일하다. 원본 사진에는 유나가 없었고, 얼굴만 해당 사진에 합성된 것으로 확인된다." },
+          crossCheck:    { found: true, clue: "최초 유포 계정은 3일 전 개설된 신규 계정으로, 팔로워 대부분이 자동 생성 계정이다. 소속사 일정·언론 어디에도 관련 기록이 없다." },
+          aiTrace:       { found: true, clue: "확대하면 오른손 손가락이 6개로 보이고 양쪽 귀걸이 모양이 서로 다르다. 뒤 간판 글자가 뭉개져 읽히지 않으며, 인물과 배경의 그림자 방향이 서로 반대다." },
+        },
+        laws: [
+          { article: "성폭력처벌법 제14조의2 (허위영상물등의 반포등)", desc: "실제 촬영물이 아니라 편집·합성·가공만으로도 성립. 반포·판매·제공·전시가 처벌 대상.", penalty: "반포 등 7년 이하 징역 또는 5천만 원 이하 벌금. 2024년 개정으로 소지·구입·저장·시청도 3년 이하 징역 또는 3천만 원 이하 벌금." },
+          { article: "정보통신망법 제70조 (명예훼손)", desc: "정보통신망을 통해 사실 또는 거짓으로 타인의 명예를 훼손하는 행위.", penalty: "거짓 사실인 경우 7년 이하 징역 또는 5천만 원 이하 벌금." },
+          { article: "민법 제750조 (불법행위) · 초상권·인격권", desc: "형사처벌과 별개로, 동의 없이 얼굴을 합성·유포당한 피해자는 민사상 손해배상을 청구할 수 있다.", penalty: "정신적·재산적 손해에 대한 손해배상 책임." },
+        ],
+        emphasis: { tone: "warn", title: "받아서 단톡방에 옮기기만 해도 '반포죄'입니다", body: "내가 직접 만들지 않았어도, 받은 합성물을 단체 채팅방에 공유하거나 저장·시청만 해도 성폭력처벌법 제14조의2의 반포·소지죄로 처벌됩니다. '재미로 구경'이 아니라 명백한 '가담'입니다." },
+        feedback: {
+          why: "① 손가락 6개·양쪽 귀걸이 비대칭·그림자 방향 불일치 등 합성 특유의 오류 ② 배경이 6개월 전 여행 블로그 원본과 동일(얼굴만 합성) ③ 최초 유포 계정이 3일 전 개설된 봇 계정. '평소 하던 목걸이'처럼 진짜 같은 디테일 하나 때문에 나머지 조작 증거를 놓쳐서는 안 된다.",
+          ethics: "합성 사진은 한 사람의 명예와 인간관계를 순식간에 무너뜨린다. 더 큰 문제는 '나는 만들지 않았으니 괜찮다'는 착각이다. 재미로 캡처해 옮기는 순간, 나도 피해를 확산시키는 가해자가 된다.",
+          law: "성폭력처벌법 제14조의2(허위영상물등의 반포등), 정보통신망법 제70조(명예훼손), 민법상 초상권·인격권 침해에 따른 손해배상 책임이 적용된다.",
+          reflection: "내가 이 캡처를 단톡방에 '이거 봤어?' 하고 옮기는 행동은, 왜 '구경'이 아니라 '가담'일까? 만약 사진 속 인물이 나였다면 어땠을까?",
+        },
+      },
+      { id: 3, type: "video", verdict: "REAL",
+        title: "AI로 복원한 독립운동가 윤경호 선생 교육 영상",
+        sourceLabel: "공영교육방송 EBK · 3·1운동 105주년 기획 · 복수 언론 보도",
+        contentBody: "공영교육방송 EBK가 3·1운동 105주년을 맞아 독립운동가 윤경호 선생의 생전 모습을 AI로 복원한 4분 분량 교육 영상을 공개했다. 흑백 사진 한 장만 남아 있던 선생이 영상 속에서 자연스럽게 미소 짓고 손을 움직인다. 화면 하단에는 'AI 복원 영상'이라는 문구가 상시 표시되며, 국가기록원 소장 원본 사진과 유족 동의 사실이 영상 설명란에 함께 안내된다. 여러 언론이 동일한 내용으로 보도했다.",
+        toolkit: {
+          reverseSearch: { found: true, clue: "복원에 사용된 원본 흑백 사진이 국가기록원 공개 자료로 확인된다. 출처와 소장 번호가 영상 설명란에 명시돼 있다." },
+          crossCheck:    { found: true, clue: "제작 사실이 공영방송 공식 채널과 복수 언론에 동일하게 보도됐다. 윤경호선생기념사업회와 유족의 사전 동의 절차도 공개돼 있다." },
+          aiTrace:       { found: true, clue: "AI 생성 특유의 부드러운 피부 질감과 미세한 움직임 흔적이 감지된다. 다만 화면에 'AI 복원' 고지가 상시 표시되어 시청자를 속이려는 의도가 전혀 없다." },
+        },
+        laws: [
+          { article: "저작권법 제24조의2 (공공저작물의 자유이용)", desc: "국가·지자체가 보유한 공공저작물(국가기록원 자료 등)은 원칙적으로 자유롭게 이용할 수 있다.", penalty: "적법한 출처 이용 — 위반이 아니라 '준수' 사례." },
+          { article: "인공지능기본법(AI기본법) 생성물 표시 의무", desc: "생성형 AI로 만든 산출물에는 'AI가 생성했음'을 표시하도록 의무화(2026년 시행).", penalty: "'AI 복원' 워터마크 상시 표시로 표시 의무를 성실히 이행한 사례." },
+          { article: "인격권 · 유족 동의", desc: "사망한 인물이라도 초상 이용에 대해 유족·기념사업회의 사전 동의를 받았다.", penalty: "사전 동의로 인격권 분쟁을 예방한 모범 사례." },
+        ],
+        emphasis: { tone: "info", title: "AI 생성물이라고 다 '가짜'가 아닙니다", body: "판단 기준은 'AI를 썼는가'가 아니라 ① 출처를 공개했는가 ② 당사자·유족의 동의가 있는가 ③ 목적이 공익적인가 입니다. 이 영상은 셋을 모두 지켰습니다. 혹시 'AI 티가 나서 FAKE'라고 찍었다면, 바로 이 기준을 다시 떠올려 보세요." },
+        feedback: {
+          why: "이 영상은 'AI로 만들었다'는 흔적이 분명히 보이지만, 그렇다고 FAKE가 아니다. ① 원본 사진 출처를 국가기록원으로 공개 ② 유족·기념사업회의 사전 동의 ③ 'AI 복원' 고지 워터마크 상시 표시 ④ 복수 언론의 동일 보도. 문제는 'AI 사용 여부'가 아니라 '속이려는 의도가 있는가'이다.",
+          ethics: "'AI 생성물 = 무조건 나쁨'이라는 반사적 판단은 위험하다. 판단 기준은 세 가지다 — ① 출처를 공개했는가 ② 당사자(또는 유족)의 동의가 있는가 ③ 목적이 공익적인가. 이 셋을 지키면 AI는 역사 교육처럼 좋은 일에도 쓰일 수 있다.",
+          law: "국가기록원 공공저작물의 적법 이용(저작권법 제24조의2), AI기본법상 생성물 표시 의무 준수, 유족 동의를 통한 인격권 존중 — 모두 '위반'이 아니라 '준수'의 사례다.",
+          reflection: "나는 방금 'AI 티가 나니까 가짜'라고 반사적으로 판단하지 않았을까? 좋은 AI 활용과 나쁜 AI 활용을 가르는 진짜 기준은 '기술'이 아니라 무엇일까?",
+        },
+      },
+      { id: 4, type: "text", verdict: "FAKE",
+        title: "하루 8분, 특정 주파수 소리로 기억력 27% 향상되는 과학적 이유",
+        sourceLabel: "개인 과학 블로그 · 공유 4천 회 · 원문 링크 없음",
+        author: "브레인핵연구소", date: "2026-05-11",
+        contentBody: "한 과학 블로그에 '하루 8분 특정 주파수 소리를 들으면 기억력이 27% 향상된다'는 글이 올라와 널리 공유되고 있다. 글은 '국제신경과학회지에 실린 2024년 연구'를 인용하며, 실험 참가자 1,240명, 해마 활성도 1.8배 증가 같은 구체적 수치를 제시한다. 문장은 매끄럽고 전문 용어가 많아 신뢰감을 준다. 하지만 인용한 논문의 제목이나 저자 이름, 원문 링크는 글 어디에도 적혀 있지 않다.",
+        references: [ "[1] 국제신경과학회지(Journal of Neural Frontiers), 제12권, 2024. — DOI 조회 불가", "[2] '주파수 청각 자극과 해마 활성도' 연구팀, 2024. — 원문 링크 없음", "[3] 뇌인지리뷰 온라인판, 2024. — 해당 학술지 검색 결과 없음" ],
+        toolkit: {
+          reverseSearch: { found: true, clue: "인용된 '국제신경과학회지(Journal of Neural Frontiers)'라는 학술지는 검색해도 존재하지 않는다. 글이 제시한 DOI로도 어떤 논문도 조회되지 않는다." },
+          crossCheck:    { found: true, clue: "동일한 연구를 다룬 다른 기관·언론 보도가 전혀 없다. '주파수 소리로 기억력 27% 향상'을 뒷받침하는 공신력 있는 자료를 찾을 수 없다." },
+          aiTrace:       { found: true, clue: "모든 문단 길이가 균일하고 문체가 지나치게 매끄럽다. 구체적 수치는 많지만 그 어느 것도 실제 출처와 연결되지 않는, 전형적인 생성형 AI 환각(hallucination) 패턴이다." },
+        },
+        laws: [
+          { article: "정보통신망법 제70조 (명예훼손)", desc: "가짜 정보로 특정 기업·제품·전문가를 허위로 깎아내린 경우 성립할 수 있다.", penalty: "거짓 사실인 경우 7년 이하 징역 또는 5천만 원 이하 벌금." },
+          { article: "형법 제314조 (업무방해)", desc: "허위 사실을 퍼뜨려 타인의 업무를 방해한 경우 성립할 수 있다.", penalty: "5년 이하 징역 또는 1천500만 원 이하 벌금." },
+          { article: "인공지능기본법(AI기본법) 표시 의무", desc: "AI로 생성한 글이라면 'AI 생성' 표시 의무의 대상이 된다.", penalty: "표시 의무 위반 시 과태료 등 행정처분 대상." },
+        ],
+        emphasis: { tone: "warn", title: "AI는 '자신 있게' 틀립니다 (환각)", body: "생성형 AI는 사실을 아는 것이 아니라 '그럴듯한 다음 단어'를 예측합니다. 그래서 존재하지 않는 논문·통계를 아주 자연스럽게 지어냅니다. '매끄럽고 전문적으로 보인다'는 느낌이야말로 가장 속기 쉬운 함정입니다." },
+        feedback: {
+          why: "① 인용한 학술지·DOI가 실존하지 않음 ② 같은 내용을 다룬 다른 신뢰 매체가 전무 ③ 수치는 구체적인데 출처가 하나도 연결되지 않고 문단 길이·문체가 기계적으로 균일. '구체적인 숫자 = 신뢰'가 아니라, '그 숫자의 출처를 추적할 수 있는가'가 진짜 기준이다.",
+          ethics: "생성형 AI는 '사실을 아는 것'이 아니라 '그럴듯한 다음 단어를 예측'하는 도구다. 그래서 존재하지 않는 논문과 통계를 아주 자신 있게 지어낸다(환각). '매끄럽고 전문적으로 보인다'는 느낌이야말로 가장 속기 쉬운 함정이다.",
+          law: "가짜 과학 정보 자체를 처벌하는 조항은 뚜렷하지 않지만, 특정 대상 명예훼손(정보통신망법 제70조)·업무방해(형법 제314조), AI기본법 표시 의무 위반으로 확산될 수 있다.",
+          reflection: "'전문 용어가 많고 문장이 매끄럽다'는 점이 왜 신뢰의 근거가 될 수 없을까? 내가 어떤 주장을 믿기 전에 반드시 확인해야 할 한 가지는 무엇일까?",
+        },
+      },
+    ];
+
+    const KEY_LESSONS = [
+      { no: "①", stages: [1, 4], title: "AI는 진짜보다 더 진짜 같다", body: "눈으로 보는 판별은 이미 한계에 도달했다. 의심의 기준을 '느낌'에서 '출처'로 옮겨야 한다." },
+      { no: "②", stages: [2], title: "가장 큰 피해는 '전달'에서 생긴다", body: "만든 사람만 가해자가 아니다. 확인 없이 옮긴 사람이 피해를 폭발시킨다. 캡처 한 장, 단톡방 공유 한 번이 법적 책임의 시작점이다." },
+      { no: "③", stages: [3], title: "AI를 의심하는 것과 거부하는 것은 다르다", body: "출처가 밝혀지고 동의가 있고 목적이 공익적이면 AI는 도구가 된다. 판단 기준은 '기술'이 아니라 '태도'다." },
+    ];
+
+    /* =====================================================================
+       ▼▼▼ (3) 교사 대시보드 설정 — Firebase 웹앱 config 를 여기에 붙여넣기 ▼▼▼
+       비어 있으면 취합은 '결과 코드 붙여넣기'로만 동작합니다.
+       설정법: 같은 폴더의 FIREBASE-SETUP.md 참고.
+       ===================================================================== */
+    const FIREBASE_CONFIG = {
+      // apiKey: "...", authDomain: "...", projectId: "...", appId: "..."
+    };
+    const FIREBASE_VERSION = "10.12.2";
+    const SESSION_COLLECTION = "dgk_sessions";
+    const AGG_ENABLED = !!(FIREBASE_CONFIG && FIREBASE_CONFIG.projectId);
+
+    /* ===================== 게임 규칙 상수 ===================== */
+    const RULES = { START_SCORE: 100, TOOLKIT_COST: 5, CORRECT_REWARD: 25, WRONG_REWARD: 0, SCORE_MAX: 100, SCORE_MIN: 40, ESTIMATED_MINUTES: 15, READ_GATE_SEC: 3, BASIS_MIN: 10 };
+    const TOOLKITS = [
+      { key: "reverseSearch", no: "①", label: "이미지 역검색",       hint: "원본 이미지·영상을 역으로 추적" },
+      { key: "crossCheck",    no: "②", label: "뉴스 출처 교차 검증", hint: "다른 매체·공식 기록과 대조" },
+      { key: "aiTrace",       no: "③", label: "AI 텍스처 흔적 분석", hint: "합성·생성 흔적 정밀 분석" },
+    ];
+    const clampScore = (n) => Math.max(RULES.SCORE_MIN, Math.min(RULES.SCORE_MAX, n));
+    function getGrade(score) {
+      if (score >= 90) return { name: "마스터 게이트키퍼", color: "#22D3EE", comment: "단서를 놓치지 않는 눈. 당신이 통과시킨 정보라면 믿을 수 있습니다." };
+      if (score >= 75) return { name: "숙련 검증관", color: "#34D399", comment: "대부분의 조작을 걸러냅니다. 이제 '진짜인데 AI 티 나는 것'까지 구분해 보세요." };
+      if (score >= 60) return { name: "견습 팩트체커", color: "#FBBF24", comment: "감은 좋습니다. 다만 확신 전에 한 번 더 교차 검증하는 습관을 들이세요." };
+      return { name: "초보 탐정", color: "#F87171", comment: "아직은 겉모습에 속기 쉽습니다. 툴킷은 귀찮은 게 아니라 당신의 무기입니다." };
+    }
+
+    /* ===================== 결과 코드 인코딩(폴백 취합용) ===================== */
+    function encodeGroup(payload) { try { return "DGK1:" + btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); } catch (e) { return ""; } }
+    function decodeGroup(code) { try { var s = String(code).trim().replace(/^DGK1:/, ""); return JSON.parse(decodeURIComponent(escape(atob(s)))); } catch (e) { return null; } }
+    function buildGroupPayload(player, summary) {
+      var grade = getGrade(summary.score);
+      return {
+        session: player.sessionCode || "", group: player.teamName || "", members: player.members || "", className: player.className || "",
+        score: summary.score, grade: grade.name,
+        correctCount: summary.results.filter((r) => r.correct).length,
+        toolkitsUsed: summary.results.reduce((a, r) => a + r.toolkitsUsed, 0),
+        stages: summary.results.map((r) => ({ id: r.id, title: r.title, type: r.type, answer: r.answer, choice: r.choice, correct: r.correct, toolkitsUsed: r.toolkitsUsed, basis: r.basis || "", reflection: r.reflection || "" })),
+        t: Date.now(),
+      };
+    }
+
+    /* ===================== Firebase(동적 로드 · 설정 있을 때만) ===================== */
+    var _fbState = { db: null, ready: false, loading: null };
+    function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = function () { rej(new Error("load fail: " + src)); }; document.head.appendChild(s); }); }
+    function ensureFirebase() {
+      if (!AGG_ENABLED) return Promise.reject(new Error("no-config"));
+      if (_fbState.ready) return Promise.resolve(_fbState.db);
+      if (_fbState.loading) return _fbState.loading;
+      var base = "https://www.gstatic.com/firebasejs/" + FIREBASE_VERSION + "/";
+      _fbState.loading = loadScript(base + "firebase-app-compat.js")
+        .then(function () { return loadScript(base + "firebase-firestore-compat.js"); })
+        .then(function () {
+          if (!window.firebase.apps.length) window.firebase.initializeApp(FIREBASE_CONFIG);
+          _fbState.db = window.firebase.firestore(); _fbState.ready = true; return _fbState.db;
+        });
+      return _fbState.loading;
+    }
+    function groupsRef(db, session) { return db.collection(SESSION_COLLECTION).doc(session || "default").collection("groups"); }
+    function docIdFor(name) { return (String(name || "group").replace(/[\/#.\[\]$\s]+/g, "_").slice(0, 80)) || "group"; }
+    function submitGroup(payload) { return ensureFirebase().then(function (db) { return groupsRef(db, payload.session).doc(docIdFor(payload.group)).set(payload); }); }
+
+    /* ===================== 인라인 SVG 아이콘 ===================== */
+    const Svg = (props) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props} />);
+    const IconShield = ({ className = "w-6 h-6" }) => (<Svg className={className}><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></Svg>);
+    const IconUser = ({ className = "w-5 h-5" }) => (<Svg className={className}><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5" /></Svg>);
+    const IconUsers = ({ className = "w-5 h-5" }) => (<Svg className={className}><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5" /><path d="M16 5.5a3 3 0 0 1 0 5.4M17 15c2.4.4 4 2.1 4 5" /></Svg>);
+    const IconTag = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 12l7-7 8 1 1 8-7 7-9-9z" /><circle cx="15" cy="9" r="1.3" /></Svg>);
+    const IconKey = ({ className = "w-5 h-5" }) => (<Svg className={className}><circle cx="8" cy="8" r="4" /><path d="M11 11l8 8M16 16l2-2M18 18l2-2" /></Svg>);
+    const IconClock = ({ className = "w-4 h-4" }) => (<Svg className={className}><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></Svg>);
+    const IconDocs = ({ className = "w-4 h-4" }) => (<Svg className={className}><rect x="5" y="3.5" width="11" height="15" rx="1.5" /><path d="M8 8h5M8 11.5h5M8 15h3" /><path d="M8.5 20.5H18a1.5 1.5 0 0 0 1.5-1.5V7" opacity="0.6" /></Svg>);
+    const IconArrow = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M5 12h14M13 6l6 6-6 6" /></Svg>);
+    const IconBack = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M19 12H5M11 6l-6 6 6 6" /></Svg>);
+    const IconPlay = ({ className = "w-6 h-6" }) => (<Svg className={className}><path d="M8 5l11 7-11 7z" /></Svg>);
+    const IconPause = ({ className = "w-6 h-6" }) => (<Svg className={className}><path d="M9 5v14M15 5v14" /></Svg>);
+    const IconSearch = ({ className = "w-5 h-5" }) => (<Svg className={className}><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.3-4.3" /></Svg>);
+    const IconCompare = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M12 4v16" /><path d="M5 8l-2 3h6l-2-3zM3 11c0 1.5 1.3 2.5 3 2.5S9 12.5 9 11" /><path d="M19 8l-2 3h6l-2-3zM15 11c0 1.5 1.3 2.5 3 2.5s3-1 3-2.5" /></Svg>);
+    const IconChip = ({ className = "w-5 h-5" }) => (<Svg className={className}><rect x="7" y="7" width="10" height="10" rx="1.5" /><path d="M10 3v3M14 3v3M10 18v3M14 18v3M3 10h3M3 14h3M18 10h3M18 14h3" /></Svg>);
+    const IconCheck = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 12l5 5L20 6" /></Svg>);
+    const IconAlert = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M12 4l9 16H3z" /><path d="M12 10v4M12 17.5v.5" /></Svg>);
+    const IconChevron = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M6 9l6 6 6-6" /></Svg>);
+    const IconImage = ({ className = "w-6 h-6" }) => (<Svg className={className}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M5 18l5-4 4 3 3-2 4 3" /></Svg>);
+    const IconHeart = ({ className = "w-4 h-4" }) => (<Svg className={className}><path d="M12 20s-7-4.5-9-9c-1.3-3 1-6 4-5 1.7.6 2.5 2 3 2 .5 0 1.3-1.4 3-2 3-1 5.3 2 4 5-2 4.5-9 9-9 9z" /></Svg>);
+    const IconShare = ({ className = "w-4 h-4" }) => (<Svg className={className}><circle cx="6" cy="12" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 11l8-4M8 13l8 4" /></Svg>);
+    const IconComment = ({ className = "w-4 h-4" }) => (<Svg className={className}><path d="M4 5h16v10H9l-4 4z" /></Svg>);
+    const IconScale = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M12 4v16M7 20h10" /><path d="M12 6l-6 2 3 5c0 1.5-1.3 2.5-3 2.5S3 14.5 3 13l3-5" opacity="0.9" /><path d="M12 6l6 2-3 5c0 1.5 1.3 2.5 3 2.5s3-1 3-2.5l-3-5" opacity="0.9" /></Svg>);
+    const IconBook = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z" /></Svg>);
+    const IconThink = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.5 1 .5 1.6h6c0-.6 0-1.2.5-1.6A6 6 0 0 0 12 3z" /></Svg>);
+    const IconEdit = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 20h4l10-10-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></Svg>);
+    const IconCopy = ({ className = "w-5 h-5" }) => (<Svg className={className}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></Svg>);
+    const IconRefresh = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8" /><path d="M20 4v4h-4" /><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16" /><path d="M4 20v-4h4" /></Svg>);
+    const IconTrophy = ({ className = "w-6 h-6" }) => (<Svg className={className}><path d="M7 4h10v4a5 5 0 0 1-10 0z" /><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" /><path d="M10 13.5V17h4v-3.5M8 20h8M10 17h4" /></Svg>);
+    const IconGrid = ({ className = "w-5 h-5" }) => (<Svg className={className}><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></Svg>);
+    const IconSend = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 12l16-7-7 16-2.5-6.5L4 12z" /></Svg>);
+
+    /* ===================== 숫자 카운트 애니메이션 훅 ===================== */
+    function useCountUp(value, duration = 400) {
+      const [display, setDisplay] = useState(value);
+      const fromRef = useRef(value); const rafRef = useRef(null);
+      useEffect(() => {
+        const from = fromRef.current, to = value; if (from === to) { setDisplay(to); return; }
+        const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (reduce) { fromRef.current = to; setDisplay(to); return; }
+        let start; const step = (t) => { if (start === undefined) start = t; const p = Math.min(1, (t - start) / duration); setDisplay(Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3)))); if (p < 1) rafRef.current = requestAnimationFrame(step); else fromRef.current = to; };
+        rafRef.current = requestAnimationFrame(step); return () => cancelAnimationFrame(rafRef.current);
+      }, [value, duration]);
+      return display;
+    }
+
+    /* ===================== 공용 헤더 ===================== */
+    function ConsoleHeader({ onTeacher, showTeacher }) {
+      return (
+        <header className="w-full border-b border-[#1F2A37] bg-[#0A0E14]/90 backdrop-blur-sm">
+          <div className="mx-auto max-w-[1200px] px-4 sm:px-6 h-11 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[#22D3EE]"><IconShield className="w-5 h-5" /><span className="font-mono text-[13px] tracking-widest text-[#8B98A5]">GATEKEEPER<span className="text-[#22D3EE]">_OS</span> v1.1</span></div>
+            <div className="flex items-center gap-3">
+              {showTeacher && <button onClick={onTeacher} className="font-mono text-[12px] text-[#8B98A5] hover:text-[#22D3EE] transition-colors inline-flex items-center gap-1.5"><IconGrid className="w-4 h-4" />교사용</button>}
+              <div className="flex items-center gap-2 font-mono text-[12px] text-[#8B98A5]"><span className="inline-block w-2 h-2 rounded-full bg-[#34D399]" aria-hidden="true"></span><span>온라인</span></div>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    /* ===================== (1) 인트로 — 모둠 접속 ===================== */
+    function IntroScreen({ onStart, onTeacher }) {
+      const [sessionCode, setSessionCode] = useState("");
+      const [className, setClassName] = useState("");
+      const [teamName, setTeamName] = useState("");
+      const [members, setMembers] = useState("");
+      const teamValid = teamName.trim().length >= 2;
+      const sessionValid = !AGG_ENABLED || sessionCode.trim().length >= 2;
+      const canStart = teamValid && sessionValid;
+      function handleSubmit(e) { e.preventDefault(); if (!canStart) return; onStart({ sessionCode: sessionCode.trim(), className: className.trim(), teamName: teamName.trim(), members: members.trim() }); }
+      return (
+        <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-8 sm:py-12">
+          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 items-start">
+            <section>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1F2A37] bg-[#131A24] px-3 py-1 mb-5"><span className="inline-block w-1.5 h-1.5 rounded-full bg-[#22D3EE]" aria-hidden="true"></span><span className="font-mono text-[12px] tracking-wider text-[#8B98A5]">모둠 협동 검증 콘솔</span></div>
+              <h1 className="text-[30px] sm:text-[40px] leading-tight font-bold tracking-tight text-[#E6EDF3]">디지털 게이트키퍼</h1>
+              <p className="mt-2 font-mono text-[15px] sm:text-[16px] text-[#22D3EE]">Digital Gatekeeper — AI 시대의 진실 찾기</p>
+              <div className="mt-7 space-y-3">
+                {["모둠이 함께 4건의 디지털 콘텐츠를 검증합니다.", "영상·이미지·글에 숨은 조작의 흔적을 3종 분석 툴킷으로 추적하세요.", "판별할 때마다 '왜 그렇게 판단했는지' 근거를 모둠이 함께 적습니다."].map((line, i) => (
+                  <div key={i} className="flex gap-3"><span className="mt-[3px] font-mono text-[13px] text-[#22D3EE] shrink-0">{String(i + 1).padStart(2, "0")}</span><p className="text-[16px] leading-relaxed text-[#8B98A5]">{line}</p></div>
+                ))}
+              </div>
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-[#8B98A5]">
+                <div className="flex items-center gap-2"><IconClock className="w-4 h-4 text-[#22D3EE]" /><span className="text-[15px]">소요 시간 약 {RULES.ESTIMATED_MINUTES}분</span></div>
+                <div className="flex items-center gap-2"><IconDocs className="w-4 h-4 text-[#22D3EE]" /><span className="text-[15px]">검증 문항 {STAGES.length}건</span></div>
+                <div className="flex items-center gap-2"><IconUsers className="w-4 h-4 text-[#22D3EE]" /><span className="text-[15px]">모둠 협동 활동</span></div>
+              </div>
+            </section>
+            <section className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-6 sm:p-7" aria-labelledby="access-panel-title">
+              <h2 id="access-panel-title" className="text-[18px] font-semibold text-[#E6EDF3]">모둠 접속</h2>
+              <p className="mt-1 text-[15px] text-[#8B98A5]">모둠 이름을 입력하고 검증을 시작하세요.</p>
+              <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
+                {AGG_ENABLED && (
+                  <Field label="세션 코드" hint="(교사 안내)" required icon={<IconKey className="w-5 h-5 text-[#8B98A5] shrink-0" />}>
+                    <input value={sessionCode} onChange={(e) => setSessionCode(e.target.value)} placeholder="예: 2026-1반" autoComplete="off" className="w-full bg-transparent py-3 text-[16px] text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none" />
+                  </Field>
+                )}
+                <Field label="모둠명 / 조" required icon={<IconUsers className="w-5 h-5 text-[#8B98A5] shrink-0" />}>
+                  <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="예: 1조 (2자 이상)" autoComplete="off" className="w-full bg-transparent py-3 text-[16px] text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none" />
+                </Field>
+                <Field label="조원 이름" hint="(선택)" icon={<IconUser className="w-5 h-5 text-[#8B98A5] shrink-0" />}>
+                  <input value={members} onChange={(e) => setMembers(e.target.value)} placeholder="예: 김OO, 이OO, 박OO" autoComplete="off" className="w-full bg-transparent py-3 text-[16px] text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none" />
+                </Field>
+                <Field label="학급" hint="(선택)" icon={<IconTag className="w-5 h-5 text-[#8B98A5] shrink-0" />}>
+                  <input value={className} onChange={(e) => setClassName(e.target.value)} placeholder="예: 1학년 3반" autoComplete="off" className="w-full bg-transparent py-3 text-[16px] text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none" />
+                </Field>
+                <button type="submit" disabled={!canStart} className={"w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[16px] font-semibold transition-colors " + (canStart ? "bg-[#22D3EE] text-[#0A0E14] hover:bg-[#67E8F9] cursor-pointer" : "bg-[#1F2A37] text-[#8B98A5] cursor-not-allowed")}>검증 시작 <IconArrow className="w-5 h-5" /></button>
+                <p className="text-center text-[13px] text-[#8B98A5]">{!teamValid ? "모둠명을 2자 이상 입력하세요." : !sessionValid ? "세션 코드를 입력하세요.(교사 안내)" : "개인정보는 저장되지 않습니다."}</p>
+              </form>
+              <div className="mt-5 pt-4 border-t border-[#1F2A37] text-center">
+                <button onClick={onTeacher} className="inline-flex items-center gap-1.5 font-mono text-[13px] text-[#8B98A5] hover:text-[#22D3EE] transition-colors"><IconGrid className="w-4 h-4" />교사용 대시보드 열기 →</button>
+              </div>
+            </section>
+          </div>
+        </main>
+      );
+    }
+    function Field({ label, hint, required, icon, children }) {
+      return (
+        <div>
+          <label className="block mb-1.5 text-[14px] font-medium text-[#8B98A5]">{label} {required ? <span className="text-[#F87171]">*</span> : hint ? <span className="font-normal text-[#8B98A5]/70">{hint}</span> : null}</label>
+          <div className="flex items-center gap-2 rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-3 focus-within:border-[#22D3EE] transition-colors">{icon}{children}</div>
+        </div>
+      );
+    }
+
+    /* ===================== HUD ===================== */
+    function Hud({ index, total, score, floaters, player }) {
+      const display = useCountUp(score);
+      const low = score <= 55;
+      return (
+        <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] px-4 sm:px-5 py-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="min-w-[200px] flex-1">
+              <div className="flex items-center gap-3"><span className="font-mono text-[13px] tracking-widest text-[#22D3EE]">STAGE {String(index + 1).padStart(2, "0")} <span className="text-[#8B98A5]">/ {String(total).padStart(2, "0")}</span></span><span className="font-mono text-[12px] text-[#8B98A5]">진행 {index + 1}/{total}</span></div>
+              <div className="mt-2 flex gap-1.5" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={index + 1} aria-label={`전체 ${total}단계 중 ${index + 1}단계`}>
+                {Array.from({ length: total }).map((_, i) => { const done = i < index, current = i === index; return (<div key={i} className={"h-2 flex-1 rounded-full border " + (done ? "bg-[#22D3EE] border-[#22D3EE]" : current ? "bg-transparent border-[#22D3EE] seg-current" : "bg-[#0A0E14] border-[#1F2A37]")} />); })}
+              </div>
+            </div>
+            <div className="relative flex items-center gap-3">
+              <div className="text-right"><div className="font-mono text-[11px] tracking-widest text-[#8B98A5]">탐구 점수</div><div className={"font-mono text-[26px] font-bold leading-none " + (low ? "text-[#FBBF24]" : "text-[#22D3EE]")}>{display}<span className="text-[13px] text-[#8B98A5]"> / 100</span></div></div>
+              <div className="pointer-events-none absolute -top-3 right-0">{floaters.map((f) => (<span key={f.id} className={"floater absolute right-0 font-mono text-[15px] font-bold " + (f.tone === "plus" ? "text-[#34D399]" : "text-[#F87171]")}>{f.text}</span>))}</div>
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#1F2A37] flex items-center gap-4 font-mono text-[12px] text-[#8B98A5] flex-wrap">
+            <span className="inline-flex items-center gap-1.5 text-[#E6EDF3]"><IconUsers className="w-4 h-4 text-[#22D3EE]" />{player?.teamName || "모둠"}</span>
+            {player?.className ? <span className="inline-flex items-center gap-1.5"><IconTag className="w-4 h-4" />{player.className}</span> : null}
+            {player?.members ? <span className="inline-flex items-center gap-1.5 truncate max-w-[220px]"><IconUser className="w-4 h-4" />{player.members}</span> : null}
+          </div>
+        </div>
+      );
+    }
+
+    /* ===================== 콘텐츠 뷰어 ===================== */
+    function splitSentences(text) { return text.replace(/^\[[^\]]*\]\s*/, "").split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0); }
+    function VideoSim({ stage }) {
+      const lines = useMemo(() => splitSentences(stage.contentBody), [stage]);
+      const [playing, setPlaying] = useState(false); const [idx, setIdx] = useState(-1); const timerRef = useRef(null);
+      useEffect(() => { setPlaying(false); setIdx(-1); clearInterval(timerRef.current); return () => clearInterval(timerRef.current); }, [stage]);
+      useEffect(() => { if (!playing) { clearInterval(timerRef.current); return; } timerRef.current = setInterval(() => { setIdx((prev) => { const next = prev + 1; if (next >= lines.length - 1) { setPlaying(false); clearInterval(timerRef.current); } return Math.min(next, lines.length - 1); }); }, 1800); return () => clearInterval(timerRef.current); }, [playing, lines.length]);
+      function toggle() { if (!playing) { if (idx < 0 || idx >= lines.length - 1) setIdx(0); setPlaying(true); } else setPlaying(false); }
+      const shown = Math.max(0, idx); const progress = idx < 0 ? 0 : ((idx + 1) / lines.length) * 100;
+      const cur = idx < 0 ? "00:00" : "00:" + String(Math.round((progress / 100) * 45)).padStart(2, "0");
+      return (
+        <div className="relative w-full rounded-xl overflow-hidden border border-[#1F2A37] bg-black" style={{ aspectRatio: "16 / 9" }}>
+          <div className="absolute inset-0 flex items-center justify-center"><div className="text-[#1F2A37]"><Svg className="w-24 h-24"><circle cx="12" cy="9" r="4" /><path d="M4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5" /></Svg></div></div>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2"><span className="font-mono text-[11px] tracking-wider text-[#8B98A5] bg-black/60 border border-[#1F2A37] rounded px-2 py-1">[영상 시뮬레이션 — 실제 영상 아님]</span></div>
+          {playing && (<div className="absolute top-3 left-3 flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#F87171] blink" aria-hidden="true"></span><span className="font-mono text-[11px] text-[#E6EDF3]">REC</span></div>)}
+          <div className="absolute left-0 right-0 bottom-14 px-4"><p className="mx-auto max-w-[85%] text-center text-[16px] sm:text-[17px] leading-relaxed text-[#E6EDF3]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }} aria-live="polite">{idx < 0 ? "재생 버튼을 눌러 자막을 확인하세요." : lines[shown]}</p></div>
+          <div className="absolute left-0 right-0 bottom-0 px-3 pb-3 pt-6 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="flex items-center gap-3">
+              <button onClick={toggle} className="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-[#22D3EE] text-[#0A0E14] hover:bg-[#67E8F9] transition-colors" aria-label={playing ? "일시정지" : "재생"}>{playing ? <IconPause className="w-5 h-5" /> : <IconPlay className="w-5 h-5" />}</button>
+              <div className="flex-1 h-1.5 rounded-full bg-[#1F2A37] overflow-hidden"><div className="h-full bg-[#22D3EE] transition-all duration-300" style={{ width: progress + "%" }} /></div>
+              <span className="font-mono text-[12px] text-[#E6EDF3] tabular-nums">{cur} / 00:45</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    function ImageSim({ stage }) {
+      const comments = [{ user: "user_2947", text: "헐 이거 진짜야? 실화면 충격인데" }, { user: "daily_kk", text: "출처가 어디임? 원본 링크 좀" }, { user: "mint_choco", text: "이런 거 그냥 믿고 퍼뜨리면 안 됨…" }];
+      const likes = 4200 + stage.id * 137, shares = 1200 + stage.id * 88;
+      return (
+        <div className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1F2A37]"><div className="w-9 h-9 rounded-full bg-[#1F2A37] grid place-items-center text-[#8B98A5]"><IconUser className="w-5 h-5" /></div><div className="min-w-0"><div className="text-[14px] font-medium text-[#E6EDF3] truncate">@익명_제보_{stage.id}</div><div className="font-mono text-[11px] text-[#8B98A5] truncate">{stage.sourceLabel}</div></div></div>
+          <div className="relative w-full border-b border-[#1F2A37]" style={{ aspectRatio: "4 / 3", backgroundImage: "repeating-linear-gradient(45deg, #131A24 0 12px, #0F1620 12px 24px)" }}>
+            <div className="absolute top-3 left-1/2 -translate-x-1/2"><span className="font-mono text-[11px] tracking-wider text-[#8B98A5] bg-black/60 border border-[#1F2A37] rounded px-2 py-1">[이미지 시뮬레이션]</span></div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"><IconImage className="w-10 h-10 text-[#1F2A37] mb-3" /><p className="max-w-[90%] text-[15px] leading-relaxed text-[#8B98A5]">{stage.contentBody}</p></div>
+          </div>
+          <div className="flex items-center gap-5 px-4 py-3 text-[#8B98A5] font-mono text-[13px]"><span className="inline-flex items-center gap-1.5"><IconHeart className="w-4 h-4" />{likes.toLocaleString()}</span><span className="inline-flex items-center gap-1.5"><IconShare className="w-4 h-4" />{shares.toLocaleString()}</span><span className="inline-flex items-center gap-1.5"><IconComment className="w-4 h-4" />{comments.length}</span><span className="ml-auto text-[12px]">방금 전 게시</span></div>
+          <div className="px-4 pb-4 space-y-2 border-t border-[#1F2A37] pt-3">{comments.map((c, i) => (<div key={i} className="text-[14px] leading-snug"><span className="font-medium text-[#E6EDF3]">{c.user}</span><span className="text-[#8B98A5]"> · {c.text}</span></div>))}</div>
+        </div>
+      );
+    }
+    function TextSim({ stage }) {
+      const paragraphs = stage.contentBody.split(/\n+/);
+      return (
+        <article className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] p-5 sm:p-6">
+          <div className="font-mono text-[11px] tracking-wider text-[#8B98A5] mb-3">[텍스트 시뮬레이션 — 블로그 포스트]</div>
+          <h3 className="text-[19px] sm:text-[21px] font-bold text-[#E6EDF3] leading-snug">{stage.title}</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[12px] text-[#8B98A5]"><span>작성자 {stage.author || "익명"}</span><span aria-hidden="true">·</span><span>{stage.date || "작성일 미상"}</span><span aria-hidden="true">·</span><span>{stage.sourceLabel}</span></div>
+          <div className="mt-4 space-y-3">{paragraphs.map((p, i) => (<p key={i} className="text-[16px] leading-relaxed text-[#E6EDF3]/90">{p}</p>))}</div>
+          <div className="mt-6 pt-4 border-t border-[#1F2A37]"><div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">참고문헌</div>{stage.references && stage.references.length > 0 ? (<ul className="space-y-1.5">{stage.references.map((r, i) => (<li key={i} className="text-[13px] leading-snug text-[#8B98A5]">{r}</li>))}</ul>) : (<p className="text-[13px] text-[#8B98A5]">이 글에는 확인 가능한 참고문헌·원문 링크가 제시되어 있지 않습니다.</p>)}</div>
+        </article>
+      );
+    }
+    function MessageSim({ stage }) {
+      const bubbles = splitSentences(stage.contentBody);
+      return (
+        <div className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#1F2A37] flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-[#1F2A37] grid place-items-center text-[#8B98A5]"><IconUser className="w-4 h-4" /></div><span className="text-[14px] text-[#E6EDF3]">단체 대화방</span><span className="ml-auto font-mono text-[11px] text-[#8B98A5]">[메시지 시뮬레이션]</span></div>
+          <div className="p-4 space-y-3 bg-[#0B1017]">{bubbles.map((b, i) => (<div key={i} className={i % 2 === 0 ? "flex justify-start" : "flex justify-end"}><div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed " + (i % 2 === 0 ? "bg-[#131A24] text-[#E6EDF3] rounded-tl-sm" : "bg-[#22D3EE] text-[#0A0E14] rounded-tr-sm")}>{b}<div className={"mt-1 font-mono text-[10px] " + (i % 2 === 0 ? "text-[#8B98A5]" : "text-[#0A0E14]/70")}>전달됨</div></div></div>))}</div>
+        </div>
+      );
+    }
+    function ContentViewer({ stage }) { const map = { video: VideoSim, image: ImageSim, text: TextSim, message: MessageSim }; const Comp = map[stage.type] || TextSim; return <Comp stage={stage} />; }
+
+    function ToolkitResultCard({ tk, result, open, onToggle }) {
+      const found = result.found;
+      return (
+        <div className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
+          <button onClick={onToggle} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#131A24] transition-colors">
+            <span className={"shrink-0 w-7 h-7 grid place-items-center rounded-lg " + (found ? "text-[#34D399] bg-[#34D399]/10" : "text-[#8B98A5] bg-[#1F2A37]")}>{found ? <IconCheck className="w-5 h-5" /> : <IconAlert className="w-5 h-5" />}</span>
+            <span className="flex-1 min-w-0"><span className="block text-[14px] font-medium text-[#E6EDF3]">{tk.label}</span><span className={"block text-[12px] font-mono " + (found ? "text-[#34D399]" : "text-[#8B98A5]")}>{found ? "결정적 단서 발견" : "특이사항 없음"}</span></span>
+            <IconChevron className={"w-5 h-5 text-[#8B98A5] transition-transform " + (open ? "rotate-180" : "")} />
+          </button>
+          {open && (<div className="px-4 pb-4 pt-1 border-t border-[#1F2A37]"><p className="text-[15px] leading-relaxed text-[#E6EDF3]/90">{result.clue}</p></div>)}
+        </div>
+      );
+    }
+
+    /* ===================== 피드백 모달 ===================== */
+    function parseClues(why) { const m = why.search(/[①②③④⑤]/); const intro = m > 0 ? why.slice(0, m).trim() : ""; const rest = m >= 0 ? why.slice(m) : why; const items = rest.split(/(?=[①②③④⑤])/).map((s) => s.trim()).filter(Boolean); return { intro, items: items.length ? items : [why] }; }
+    function FeedbackModal({ data, isLast, onNext }) {
+      const { stage, choice, correct, used, basis } = data;
+      const fb = stage.feedback; const clues = useMemo(() => parseClues(fb.why), [fb.why]);
+      const [reflection, setReflection] = useState("");
+      const [count, setCount] = useState(RULES.READ_GATE_SEC);
+      const dialogRef = useRef(null);
+      useEffect(() => { const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; if (reduce) { setCount(0); return; } if (count <= 0) return; const t = setTimeout(() => setCount((c) => c - 1), 1000); return () => clearTimeout(t); }, [count]);
+      useEffect(() => {
+        const node = dialogRef.current; const prevActive = document.activeElement; if (node) node.focus();
+        const getFocusable = () => Array.from(node.querySelectorAll('button, textarea, [href], input, select, [tabindex]:not([tabindex="-1"])')).filter((el) => !el.disabled && el.offsetParent !== null);
+        function onKey(e) { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); return; } if (e.key === "Tab") { const items = getFocusable(); if (!items.length) { e.preventDefault(); return; } const first = items[0], last = items[items.length - 1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); } } }
+        node && node.addEventListener("keydown", onKey); const prevOverflow = document.body.style.overflow; document.body.style.overflow = "hidden";
+        return () => { node && node.removeEventListener("keydown", onKey); document.body.style.overflow = prevOverflow; if (prevActive && prevActive.focus) prevActive.focus(); };
+      }, []);
+      const ready = count <= 0; const answerReal = stage.verdict === "REAL"; const emphasis = stage.emphasis;
+      return (
+        <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="fb-title" tabIndex={-1} className="modal-in w-full max-w-[720px] max-h-[100dvh] sm:max-h-[90vh] bg-[#131A24] border border-[#1F2A37] rounded-t-2xl sm:rounded-2xl flex flex-col outline-none">
+            <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-6 space-y-6">
+              <header className="pb-5 border-b border-[#1F2A37]">
+                <div className="flex items-start gap-3">
+                  <span className={"shrink-0 w-11 h-11 grid place-items-center rounded-xl " + (correct ? "text-[#34D399] bg-[#34D399]/10" : "text-[#FBBF24] bg-[#FBBF24]/10")}>{correct ? <IconCheck className="w-7 h-7" /> : <IconThink className="w-7 h-7" />}</span>
+                  <div className="min-w-0">
+                    <h2 id="fb-title" className={"text-[22px] sm:text-[24px] font-bold leading-tight " + (correct ? "text-[#34D399]" : "text-[#FBBF24]")}>{correct ? "정확한 판별입니다" : "판별이 빗나갔습니다"}</h2>
+                    <p className="mt-1.5 text-[15px] leading-relaxed text-[#8B98A5]">{correct ? "근거를 제대로 짚었습니다. 왜 그렇게 판단하는 게 맞는지 아래에서 확인하세요." : "괜찮습니다. 이건 전문가도 놓치는 지점입니다. 지금 이유를 이해하면, 실제 상황에서는 속지 않습니다."}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className={"inline-flex items-center gap-2 rounded-xl border px-4 py-2 " + (answerReal ? "border-[#34D399]/50 bg-[#34D399]/5 text-[#34D399]" : "border-[#F87171]/50 bg-[#F87171]/5 text-[#F87171]")}>{answerReal ? <IconCheck className="w-6 h-6" /> : <IconAlert className="w-6 h-6" />}<span className="font-mono text-[12px] text-[#8B98A5]">이 콘텐츠의 정답</span><span className="text-[20px] font-bold">{stage.verdict}</span><span className="text-[14px] font-medium">{answerReal ? "진실" : "거짓"}</span></div>
+                  <span className="font-mono text-[12px] text-[#8B98A5]">우리 모둠 선택: <span className={correct ? "text-[#34D399]" : "text-[#FBBF24]"}>{choice}</span></span>
+                </div>
+                {basis ? (<div className="mt-3 rounded-lg border border-[#1F2A37] bg-[#0A0E14] px-3 py-2"><span className="font-mono text-[11px] text-[#8B98A5]">우리 모둠이 쓴 판단 근거</span><p className="mt-0.5 text-[14px] text-[#E6EDF3]/90 leading-relaxed">{basis}</p></div>) : null}
+              </header>
+              <section>
+                <div className="flex items-center gap-2 mb-3"><IconSearch className="w-5 h-5 text-[#22D3EE]" /><h3 className="text-[16px] font-semibold text-[#E6EDF3]">결정적 단서</h3></div>
+                {clues.intro && <p className="mb-3 text-[15px] leading-relaxed text-[#E6EDF3]/90">{clues.intro}</p>}
+                <ul className="space-y-2.5">{clues.items.map((c, i) => (<li key={i} className="flex gap-3 rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-4 py-3"><span className="shrink-0 mt-0.5 text-[#22D3EE]"><IconCheck className="w-5 h-5" /></span><p className="text-[15px] leading-relaxed text-[#E6EDF3]/90">{c}</p></li>))}</ul>
+                <div className="mt-4 rounded-xl border border-[#1F2A37] bg-[#0A0E14] p-4">
+                  <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-3">우리가 확인한 근거 vs 놓친 근거</div>
+                  <div className="space-y-2.5">{TOOLKITS.map((tk) => { const u = !!used[tk.key]; const found = stage.toolkit[tk.key].found; return (<div key={tk.key} className="flex items-center gap-3"><span className={"shrink-0 w-7 h-7 grid place-items-center rounded-lg " + (u ? "text-[#22D3EE] bg-[#22D3EE]/10" : "text-[#8B98A5] bg-[#1F2A37]")}>{u ? <IconCheck className="w-5 h-5" /> : <IconChevron className="w-5 h-5 rotate-[-90deg]" />}</span><span className={"flex-1 text-[14px] " + (u ? "text-[#E6EDF3]" : "text-[#8B98A5]")}>{tk.label}</span>{u ? (<span className="font-mono text-[12px] text-[#22D3EE]">확인함</span>) : (<span className={"font-mono text-[12px] text-right " + (found ? "text-[#FBBF24]" : "text-[#8B98A5]")}>{found ? "확인하지 않음 · 여기에 단서가 있었습니다" : "확인하지 않음"}</span>)}</div>); })}</div>
+                </div>
+              </section>
+              <section>
+                <div className="flex items-center gap-2 mb-3"><IconScale className="w-5 h-5 text-[#22D3EE]" /><h3 className="text-[16px] font-semibold text-[#E6EDF3]">윤리와 법</h3></div>
+                <p className="text-[15px] leading-relaxed text-[#E6EDF3]/90">{fb.ethics}</p>
+                {emphasis && (<div className={"mt-4 rounded-xl border-l-4 p-4 " + (emphasis.tone === "info" ? "border-l-[#22D3EE] bg-[#22D3EE]/5 border border-[#22D3EE]/25" : "border-l-[#FBBF24] bg-[#FBBF24]/5 border border-[#FBBF24]/25")}><div className={"flex items-center gap-2 mb-1.5 text-[14px] font-bold " + (emphasis.tone === "info" ? "text-[#22D3EE]" : "text-[#FBBF24]")}>{emphasis.tone === "info" ? <IconShield className="w-5 h-5" /> : <IconAlert className="w-5 h-5" />}{emphasis.title}</div><p className="text-[15px] leading-relaxed text-[#E6EDF3]/90">{emphasis.body}</p></div>)}
+                <div className="mt-4 rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#1F2A37] bg-[#131A24]"><IconBook className="w-5 h-5 text-[#8B98A5]" /><span className="font-mono text-[12px] tracking-wider text-[#8B98A5]">관련 법령</span></div>
+                  {stage.laws && stage.laws.length > 0 ? (<ul className="divide-y divide-[#1F2A37]">{stage.laws.map((law, i) => (<li key={i} className="px-4 py-3"><div className="text-[14px] font-semibold text-[#E6EDF3]">{law.article}</div><div className="mt-1 text-[14px] leading-relaxed text-[#8B98A5]">{law.desc}</div><div className="mt-1.5 inline-flex items-start gap-1.5 text-[13px] leading-snug text-[#FBBF24]"><IconScale className="w-4 h-4 mt-0.5 shrink-0" /><span>{law.penalty}</span></div></li>))}</ul>) : (<p className="px-4 py-3 text-[14px] leading-relaxed text-[#8B98A5]">{fb.law}</p>)}
+                </div>
+              </section>
+              <section>
+                <div className="flex items-center gap-2 mb-3"><IconThink className="w-5 h-5 text-[#22D3EE]" /><h3 className="text-[16px] font-semibold text-[#E6EDF3]">생각해 볼 질문</h3></div>
+                <p className="text-[15px] leading-relaxed text-[#E6EDF3] font-medium">{fb.reflection}</p>
+                <label htmlFor="reflection-input" className="sr-only">성찰 질문에 대한 우리 모둠의 생각</label>
+                <textarea id="reflection-input" value={reflection} onChange={(e) => setReflection(e.target.value)} rows={3} placeholder="모둠의 생각을 자유롭게 적어보세요. (선택 · 교사 대시보드와 결과 화면에서 볼 수 있습니다)" className="mt-3 w-full rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-4 py-3 text-[16px] leading-relaxed text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none focus:border-[#22D3EE] transition-colors resize-none" />
+              </section>
+            </div>
+            <div className="shrink-0 border-t border-[#1F2A37] px-5 sm:px-7 py-4"><button onClick={() => ready && onNext(reflection.trim())} disabled={!ready} className={"w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[16px] font-semibold transition-colors " + (ready ? "bg-[#22D3EE] text-[#0A0E14] hover:bg-[#67E8F9] cursor-pointer" : "bg-[#1F2A37] text-[#8B98A5] cursor-not-allowed")}>{ready ? (<>{isLast ? "결과 리포트 보기" : "다음 스테이지"} <IconArrow className="w-5 h-5" /></>) : (<>잠시만요 · 내용을 읽어주세요 ({count})</>)}</button></div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ===================== (2) 게임 화면 — 판단 근거 필수 ===================== */
+    function GameScreen({ player, onFinish }) {
+      const total = STAGES.length;
+      const [index, setIndex] = useState(0);
+      const [score, setScore] = useState(RULES.START_SCORE);
+      const [used, setUsed] = useState({});
+      const [loading, setLoading] = useState({});
+      const [openCards, setOpenCards] = useState({});
+      const [decided, setDecided] = useState(false);
+      const [floaters, setFloaters] = useState([]);
+      const [fade, setFade] = useState(true);
+      const [modal, setModal] = useState(null);
+      const [basis, setBasis] = useState("");
+      const resultsRef = useRef([]);
+      const floatId = useRef(0);
+      const timers = useRef([]);
+      const stage = STAGES[index];
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+      function pushFloater(text, tone) { const id = ++floatId.current; setFloaters((f) => [...f, { id, text, tone }]); const t = setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== id)), 800); timers.current.push(t); }
+      function useToolkit(key) {
+        if (used[key] || loading[key]) { if (used[key]) setOpenCards((o) => ({ ...o, [key]: !o[key] })); return; }
+        setLoading((l) => ({ ...l, [key]: true })); setScore((s) => clampScore(s - RULES.TOOLKIT_COST)); pushFloater("-" + RULES.TOOLKIT_COST, "minus");
+        const t = setTimeout(() => { setLoading((l) => { const n = { ...l }; delete n[key]; return n; }); setUsed((u) => ({ ...u, [key]: true })); setOpenCards((o) => ({ ...o, [key]: true })); }, 800);
+        timers.current.push(t);
+      }
+      function advance() {
+        if (index + 1 >= total) { onFinish({ score, results: resultsRef.current }); return; }
+        const go = () => { setIndex((i) => i + 1); setUsed({}); setLoading({}); setOpenCards({}); setDecided(false); setFloaters([]); setBasis(""); window.scrollTo(0, 0); if (!reduceMotion) requestAnimationFrame(() => requestAnimationFrame(() => setFade(true))); };
+        if (reduceMotion) { go(); return; } setFade(false); const t = setTimeout(go, 200); timers.current.push(t);
+      }
+      function verdict(choice) {
+        if (decided) return; const basisText = basis.trim(); if (basisText.length < RULES.BASIS_MIN) return;
+        setDecided(true);
+        const correct = choice === stage.verdict; const reward = correct ? RULES.CORRECT_REWARD : RULES.WRONG_REWARD;
+        setScore((s) => clampScore(s + reward)); if (correct) pushFloater("+" + RULES.CORRECT_REWARD, "plus");
+        const usedSnapshot = { ...used }; const usedCount = TOOLKITS.filter((tk) => usedSnapshot[tk.key]).length;
+        setModal({ stage, choice, correct, used: usedSnapshot, usedCount, basis: basisText });
+      }
+      function handleNext(reflectionText) {
+        const m = modal;
+        resultsRef.current = [...resultsRef.current, { id: m.stage.id, type: m.stage.type, title: m.stage.title, answer: m.stage.verdict, choice: m.choice, correct: m.correct, toolkitsUsed: m.usedCount, basis: m.basis || "", reflectionQuestion: m.stage.feedback.reflection, reflection: reflectionText || "" }];
+        setModal(null); advance();
+      }
+      const toolkitIcons = { reverseSearch: IconSearch, crossCheck: IconCompare, aiTrace: IconChip };
+      const isLast = index + 1 >= total;
+      const basisLen = basis.trim().length; const basisOk = basisLen >= RULES.BASIS_MIN;
+      return (
+        <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-5 sm:py-7 space-y-5">
+          <Hud index={index} total={total} score={score} floaters={floaters} player={player} />
+          <div className={"transition-opacity duration-200 " + (fade ? "opacity-100" : "opacity-0")}>
+            <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] items-start">
+              <section aria-label="검증 대상 콘텐츠">
+                <div className="mb-3 flex items-center gap-2"><span className="font-mono text-[11px] tracking-widest text-[#22D3EE] border border-[#1F2A37] rounded px-2 py-1 uppercase">{stage.type}</span><h2 className="text-[16px] sm:text-[17px] font-semibold text-[#E6EDF3] leading-snug">{stage.title}</h2></div>
+                <ContentViewer stage={stage} />
+              </section>
+              <section className="space-y-5" aria-label="분석 도구 및 판별">
+                <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-3"><h3 className="text-[15px] font-semibold text-[#E6EDF3]">분석 툴킷</h3><span className="font-mono text-[11px] text-[#8B98A5]">사용 {TOOLKITS.filter((t) => used[t.key]).length}/3</span></div>
+                  <div className="space-y-2.5">
+                    {TOOLKITS.map((tk) => { const Icon = toolkitIcons[tk.key]; const isUsed = !!used[tk.key]; const isLoading = !!loading[tk.key]; return (
+                      <button key={tk.key} onClick={() => useToolkit(tk.key)} disabled={isLoading} aria-pressed={isUsed} className={"relative w-full text-left rounded-xl border px-3.5 py-3 transition-colors overflow-hidden " + (isUsed ? "border-[#22D3EE]/40 bg-[#0A0E14]" : isLoading ? "border-[#22D3EE] bg-[#0A0E14] cursor-wait" : "border-[#1F2A37] bg-[#0A0E14] hover:border-[#22D3EE] cursor-pointer")}>
+                        {isLoading && (<span className="pointer-events-none absolute inset-0" aria-hidden="true"><span className="scan-line absolute left-0 right-0 h-8 bg-gradient-to-b from-transparent via-[#22D3EE]/25 to-transparent" /></span>)}
+                        <div className="relative flex items-center gap-3"><span className={"shrink-0 w-9 h-9 grid place-items-center rounded-lg " + (isUsed ? "text-[#22D3EE] bg-[#22D3EE]/10" : "text-[#8B98A5] bg-[#1F2A37]")}><Icon className="w-5 h-5" /></span><span className="flex-1 min-w-0"><span className="block text-[14px] font-medium text-[#E6EDF3]"><span className="text-[#8B98A5] font-mono mr-1">{tk.no}</span>{tk.label}</span><span className="block text-[12px] text-[#8B98A5] truncate">{isLoading ? "분석 중..." : isUsed ? "사용됨 · 결과 열람 가능" : tk.hint}</span></span>{!isUsed ? (<span className="shrink-0 font-mono text-[12px] font-bold text-[#F87171] border border-[#F87171]/30 rounded px-1.5 py-0.5">-5점</span>) : (<span className="shrink-0 font-mono text-[11px] text-[#22D3EE]">✓</span>)}</div>
+                      </button>); })}
+                  </div>
+                  {TOOLKITS.some((t) => used[t.key]) && (<div className="mt-4 pt-4 border-t border-[#1F2A37] space-y-2.5"><div className="font-mono text-[11px] tracking-wider text-[#8B98A5]">분석 결과</div>{TOOLKITS.filter((t) => used[t.key]).map((tk) => (<ToolkitResultCard key={tk.key} tk={tk} result={stage.toolkit[tk.key]} open={!!openCards[tk.key]} onToggle={() => setOpenCards((o) => ({ ...o, [tk.key]: !o[tk.key] }))} />))}</div>)}
+                </div>
+                {/* 판단 근거 (필수) + 판별 */}
+                <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-1"><IconEdit className="w-5 h-5 text-[#22D3EE]" /><h3 className="text-[15px] font-semibold text-[#E6EDF3]">판단 근거 <span className="text-[#F87171]">*</span></h3></div>
+                  <p className="text-[13px] text-[#8B98A5] mb-2">이 콘텐츠를 왜 그렇게 판단했는지 근거를 적으세요. (모둠 토의 후 작성)</p>
+                  <textarea value={basis} onChange={(e) => setBasis(e.target.value)} rows={3} disabled={decided} placeholder="예: 툴킷으로 원본 영상을 찾았고, 공식 계정에 이 발언이 없어서…" className="w-full rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-3.5 py-3 text-[16px] leading-relaxed text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none focus:border-[#22D3EE] transition-colors resize-none disabled:opacity-60" />
+                  <p className={"mt-1.5 text-[12px] font-mono " + (basisOk ? "text-[#34D399]" : "text-[#8B98A5]")}>{basisOk ? "작성 완료 · 판별할 수 있습니다" : `근거를 ${RULES.BASIS_MIN}자 이상 적어야 판별할 수 있습니다 (현재 ${basisLen}자)`}</p>
+
+                  <h3 className="mt-4 text-[15px] font-semibold text-[#E6EDF3] mb-1">최종 판별</h3>
+                  <p className="text-[13px] text-[#8B98A5] mb-3">이 콘텐츠는 진실입니까, 거짓입니까?</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => verdict("REAL")} disabled={decided || !basisOk} className="group inline-flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-[#34D399]/50 bg-[#34D399]/5 py-4 text-[#34D399] hover:bg-[#34D399] hover:text-[#0A0E14] transition-colors disabled:opacity-40 disabled:pointer-events-none"><IconCheck className="w-7 h-7" /><span className="text-[16px] font-bold">REAL</span><span className="text-[12px] font-medium opacity-90">진실</span></button>
+                    <button onClick={() => verdict("FAKE")} disabled={decided || !basisOk} className="group inline-flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-[#F87171]/50 bg-[#F87171]/5 py-4 text-[#F87171] hover:bg-[#F87171] hover:text-[#0A0E14] transition-colors disabled:opacity-40 disabled:pointer-events-none"><IconAlert className="w-7 h-7" /><span className="text-[16px] font-bold">FAKE</span><span className="text-[12px] font-medium opacity-90">거짓</span></button>
+                  </div>
+                  {!basisOk && <p className="mt-2 text-center text-[12px] text-[#FBBF24]">먼저 판단 근거를 작성하세요.</p>}
+                </div>
+              </section>
+            </div>
+          </div>
+          {modal && <FeedbackModal data={modal} isLast={isLast} onNext={handleNext} />}
+        </main>
+      );
+    }
+
+    /* ===================== 결과 화면 (모둠) ===================== */
+    function ResultScreen({ player, summary, onRetry, onHome }) {
+      const results = (summary && summary.results) || [];
+      const score = summary ? summary.score : RULES.SCORE_MIN;
+      const grade = getGrade(score);
+      const correctCount = results.filter((r) => r.correct).length;
+      const usedTotal = results.reduce((a, r) => a + r.toolkitsUsed, 0);
+      const maxToolkits = STAGES.length * 3;
+      const usageRate = Math.round((usedTotal / maxToolkits) * 100);
+      const displayScore = useCountUp(score, 800);
+      const [copied, setCopied] = useState(false);
+      const [codeCopied, setCodeCopied] = useState(false);
+      const [subState, setSubState] = useState("idle"); // idle|submitting|ok|error|off
+      const stageTitleById = useMemo(() => Object.fromEntries(STAGES.map((s) => [s.id, s.title])), []);
+      const payload = useMemo(() => summary ? buildGroupPayload(player, summary) : null, [player, summary]);
+      const groupCode = useMemo(() => payload ? encodeGroup(payload) : "", [payload]);
+
+      // Firebase 자동 제출(설정된 경우)
+      const submit = () => {
+        if (!AGG_ENABLED || !payload) { setSubState("off"); return; }
+        setSubState("submitting");
+        submitGroup(payload).then(() => setSubState("ok")).catch(() => setSubState("error"));
+      };
+      useEffect(() => { submit(); /* eslint-disable-next-line */ }, []);
+
+      function buildReflectionText() {
+        const L = [];
+        L.push("디지털 게이트키퍼 — 모둠 활동 기록");
+        L.push("모둠: " + (player?.teamName || "") + (player?.className ? " (" + player.className + ")" : ""));
+        if (player?.members) L.push("조원: " + player.members);
+        L.push("최종 점수: " + score + " / 100 · 등급: " + grade.name);
+        L.push("정확도: " + correctCount + "/" + STAGES.length + " · 툴킷 활용률: " + usageRate + "%");
+        L.push("");
+        results.forEach((r) => { L.push("[STAGE " + String(r.id).padStart(2, "0") + "] " + r.title); L.push("판별: " + r.choice + " (정답 " + r.answer + ", " + (r.correct ? "정답" : "오답") + ")"); L.push("판단 근거: " + (r.basis || "(미작성)")); L.push("성찰: " + (r.reflection || "(미작성)")); L.push(""); });
+        return L.join("\n");
+      }
+      function copyText(text, done) { const finish = () => { done(); }; try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(finish, () => fallbackCopy(text, finish)); } else fallbackCopy(text, finish); } catch (e) { fallbackCopy(text, finish); } }
+      function fallbackCopy(text, done) { try { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); done(); } catch (e) { alert("복사 실패. 내용을 직접 선택해 복사하세요."); } }
+
+      const lowUsage = usageRate < 33;
+      return (
+        <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-8 sm:py-10 space-y-6">
+          <section className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <div className="text-center sm:text-left"><div className="font-mono text-[12px] tracking-widest text-[#8B98A5]">FINAL REPORT</div><div className="mt-1 font-mono text-[56px] sm:text-[64px] font-bold leading-none" style={{ color: grade.color }}>{displayScore}<span className="text-[20px] text-[#8B98A5]"> / 100</span></div></div>
+              <div className="flex-1 sm:border-l sm:border-[#1F2A37] sm:pl-6">
+                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-2 border" style={{ borderColor: grade.color + "80", background: grade.color + "14", color: grade.color }}><IconTrophy className="w-5 h-5" /><span className="text-[15px] font-bold">{grade.name}</span></div>
+                <p className="text-[16px] leading-relaxed text-[#E6EDF3]/90">{grade.comment}</p>
+                <p className="mt-1 text-[14px] text-[#8B98A5] inline-flex items-center gap-1.5"><IconUsers className="w-4 h-4" />{player?.teamName} 모둠{player?.className ? " · " + player.className : ""}</p>
+              </div>
+            </div>
+            {/* 제출 상태 */}
+            <div className="mt-5 pt-4 border-t border-[#1F2A37] flex items-center gap-3 flex-wrap">
+              {AGG_ENABLED ? (
+                <>
+                  <span className={"inline-flex items-center gap-2 font-mono text-[13px] px-3 py-1.5 rounded-lg border " + (subState === "ok" ? "text-[#34D399] border-[#34D399]/40 bg-[#34D399]/5" : subState === "error" ? "text-[#F87171] border-[#F87171]/40 bg-[#F87171]/5" : "text-[#8B98A5] border-[#1F2A37]")}>
+                    <IconSend className="w-4 h-4" />{subState === "submitting" ? "교사 대시보드로 제출 중..." : subState === "ok" ? "제출 완료 · 교사 화면에 표시됨" : subState === "error" ? "제출 실패" : "제출 대기"}
+                  </span>
+                  {subState === "error" && <button onClick={submit} className="font-mono text-[13px] text-[#22D3EE] hover:underline">다시 제출</button>}
+                  <span className="font-mono text-[12px] text-[#8B98A5]">세션: {player?.sessionCode || "default"}</span>
+                </>
+              ) : (
+                <span className="font-mono text-[12px] text-[#8B98A5]">교사 취합: 아래 '모둠 결과 코드'를 복사해 교사에게 전달하세요.</span>
+              )}
+            </div>
+          </section>
+
+          <section aria-label="핵심 요약">
+            <h2 className="text-[18px] font-bold text-[#E6EDF3] mb-1">오늘 반드시 기억할 3가지</h2>
+            <p className="text-[14px] text-[#8B98A5] mb-4">체험한 스테이지와 연결해 다시 새겨두세요.</p>
+            <div className="grid gap-4 md:grid-cols-3">{KEY_LESSONS.map((k) => (<div key={k.no} className="rounded-2xl border border-[#22D3EE]/30 bg-gradient-to-b from-[#22D3EE]/[0.06] to-transparent p-5 flex flex-col"><div className="font-mono text-[34px] font-bold text-[#22D3EE] leading-none">{k.no}</div><h3 className="mt-3 text-[18px] font-bold text-[#E6EDF3] leading-snug">{k.title}</h3><p className="mt-2 text-[15px] leading-relaxed text-[#8B98A5] flex-1">{k.body}</p><div className="mt-4 flex flex-wrap gap-1.5">{k.stages.map((sid) => (<span key={sid} title={stageTitleById[sid]} className="font-mono text-[11px] text-[#22D3EE] border border-[#22D3EE]/30 rounded px-2 py-1">STAGE {String(sid).padStart(2, "0")}</span>))}</div></div>))}</div>
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr] items-start">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-5 text-center"><div className="font-mono text-[11px] tracking-wider text-[#8B98A5]">정확도</div><div className="mt-1 font-mono text-[32px] font-bold text-[#34D399]">{correctCount}<span className="text-[16px] text-[#8B98A5]">/{STAGES.length}</span></div></div>
+                <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-5 text-center"><div className="font-mono text-[11px] tracking-wider text-[#8B98A5]">툴킷 활용률</div><div className={"mt-1 font-mono text-[32px] font-bold " + (lowUsage ? "text-[#F87171]" : usageRate < 67 ? "text-[#FBBF24]" : "text-[#22D3EE]")}>{usageRate}<span className="text-[16px] text-[#8B98A5]">%</span></div><div className="text-[11px] font-mono text-[#8B98A5]">{usedTotal}/{maxToolkits} 사용</div></div>
+              </div>
+              {lowUsage && (<div className="rounded-2xl border border-[#F87171]/40 bg-[#F87171]/[0.07] p-5" role="alert"><div className="flex items-center gap-2 text-[#F87171] font-bold text-[15px] mb-1.5"><IconAlert className="w-5 h-5" />근거 없이 판단하고 있습니다</div><p className="text-[15px] leading-relaxed text-[#E6EDF3]/90">근거를 확인하지 않고 판단했습니다. 온라인에서 가장 위험한 습관입니다. 점수가 높더라도, 그건 실력이 아니라 운입니다.</p></div>)}
+              {/* 모둠 결과 코드(폴백 취합) */}
+              <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4">
+                <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">모둠 결과 코드 (교사 취합용)</div>
+                <div className="rounded-lg border border-[#1F2A37] bg-[#0A0E14] px-3 py-2 font-mono text-[11px] text-[#8B98A5] break-all max-h-[64px] overflow-y-auto">{groupCode}</div>
+                <button onClick={() => copyText(groupCode, () => { setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); })} className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-3 py-2 text-[13px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors">{codeCopied ? <IconCheck className="w-4 h-4" /> : <IconCopy className="w-4 h-4" />}{codeCopied ? "복사됨" : "결과 코드 복사"}</button>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
+              <h3 className="text-[15px] font-semibold text-[#E6EDF3] mb-3">스테이지별 결과 · 우리 모둠의 근거</h3>
+              <div className="space-y-3">
+                {results.map((r) => (
+                  <div key={r.id} className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] p-3.5">
+                    <div className="flex items-center gap-2 mb-1.5"><span className={r.correct ? "text-[#34D399]" : "text-[#FBBF24]"}>{r.correct ? <IconCheck className="w-4 h-4" /> : <IconAlert className="w-4 h-4" />}</span><span className="text-[13px] font-medium text-[#E6EDF3] flex-1 min-w-0"><span className="font-mono text-[#8B98A5] mr-1">S{r.id}</span>{r.title}</span><span className={"font-mono text-[12px] font-bold " + (r.choice === "REAL" ? "text-[#34D399]" : "text-[#F87171]")}>{r.choice}</span></div>
+                    <p className="text-[13px] leading-relaxed text-[#8B98A5]"><span className="text-[#E6EDF3]/70">근거:</span> {r.basis || "(미작성)"}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-3"><div><h3 className="text-[16px] font-semibold text-[#E6EDF3]">모둠 활동 기록 전체</h3><p className="text-[13px] text-[#8B98A5]">근거·성찰을 텍스트로 복사해 학습지·과제에 붙여넣으세요.</p></div><button onClick={() => copyText(buildReflectionText(), () => { setCopied(true); setTimeout(() => setCopied(false), 2000); })} className="inline-flex items-center gap-2 rounded-xl border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-4 py-2.5 text-[14px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors">{copied ? <IconCheck className="w-5 h-5" /> : <IconCopy className="w-5 h-5" />}{copied ? "복사되었습니다" : "전체 복사"}</button></div>
+          </section>
+
+          <section className="flex flex-col sm:flex-row gap-3">
+            <button onClick={onRetry} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#22D3EE] px-5 py-3.5 text-[16px] font-semibold text-[#0A0E14] hover:bg-[#67E8F9] transition-colors"><IconRefresh className="w-5 h-5" />다시 도전</button>
+            <button onClick={onHome} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-5 py-3.5 text-[16px] font-medium text-[#E6EDF3] hover:border-[#22D3EE] transition-colors">처음 화면으로</button>
+          </section>
+        </main>
+      );
+    }
+
+    /* ===================== (3) 교사 대시보드 ===================== */
+    function TeacherDashboard({ onBack }) {
+      const [code, setCode] = useState("");
+      const [connected, setConnected] = useState(false);
+      const [fbGroups, setFbGroups] = useState([]);
+      const [manual, setManual] = useState([]);
+      const [pasteText, setPasteText] = useState("");
+      const [connErr, setConnErr] = useState("");
+      const [openStage, setOpenStage] = useState(0);
+      const unsubRef = useRef(null);
+
+      useEffect(() => () => { if (unsubRef.current) unsubRef.current(); }, []);
+
+      function connect() {
+        if (!AGG_ENABLED) return;
+        const c = code.trim() || "default"; setConnErr("");
+        if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
+        ensureFirebase().then((db) => {
+          const un = groupsRef(db, c).onSnapshot((snap) => { const arr = []; snap.forEach((d) => arr.push(d.data())); setFbGroups(arr); setConnected(true); }, (err) => { setConnErr("연결 오류: " + (err && err.message ? err.message : err) + " (Firestore 보안 규칙을 확인하세요)"); setConnected(false); });
+          unsubRef.current = un;
+        }).catch((e) => setConnErr("Firebase 초기화 실패: " + (e && e.message ? e.message : e)));
+      }
+      function addPasted() {
+        const codes = pasteText.split(/\s+/).map((s) => s.trim()).filter((s) => s.indexOf("DGK1:") >= 0 || s.length > 20);
+        const parsed = codes.map(decodeGroup).filter(Boolean);
+        if (!parsed.length) { alert("유효한 결과 코드를 찾지 못했습니다."); return; }
+        setManual((prev) => { const byName = {}; prev.forEach((g) => (byName[g.group] = g)); parsed.forEach((g) => (byName[g.group] = g)); return Object.values(byName); });
+        setPasteText("");
+      }
+      function clearAll() { setManual([]); setFbGroups([]); }
+
+      // 병합(모둠명 기준, Firebase 우선)
+      const groups = useMemo(() => { const byName = {}; manual.forEach((g) => (byName[g.group] = g)); fbGroups.forEach((g) => (byName[g.group] = g)); return Object.values(byName).sort((a, b) => String(a.group).localeCompare(String(b.group), "ko")); }, [manual, fbGroups]);
+
+      return (
+        <main className="mx-auto max-w-[1200px] px-4 sm:px-6 py-6 space-y-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3"><button onClick={onBack} className="inline-flex items-center gap-1.5 rounded-lg border border-[#1F2A37] bg-[#0A0E14] px-3 py-2 text-[13px] text-[#8B98A5] hover:border-[#22D3EE] transition-colors"><IconBack className="w-4 h-4" />학생 화면</button><h1 className="text-[20px] font-bold text-[#E6EDF3] inline-flex items-center gap-2"><IconGrid className="w-6 h-6 text-[#22D3EE]" />교사용 대시보드</h1></div>
+            <div className="flex items-center gap-2 font-mono text-[12px] text-[#8B98A5]"><IconUsers className="w-4 h-4" />모둠 {groups.length}팀{connected && <span className="inline-flex items-center gap-1.5 text-[#34D399]"><span className="w-2 h-2 rounded-full bg-[#34D399] live-dot" />실시간</span>}</div>
+          </div>
+
+          {/* 접속/취합 컨트롤 */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4">
+              <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">실시간 취합 (Firebase)</div>
+              {AGG_ENABLED ? (
+                <div className="flex items-center gap-2"><div className="flex items-center gap-2 flex-1 rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-3"><IconKey className="w-5 h-5 text-[#8B98A5]" /><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="세션 코드 (학생과 동일)" className="w-full bg-transparent py-2.5 text-[15px] text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none" /></div><button onClick={connect} className="rounded-xl bg-[#22D3EE] px-4 py-2.5 text-[14px] font-semibold text-[#0A0E14] hover:bg-[#67E8F9] transition-colors">접속</button></div>
+              ) : (<p className="text-[13px] leading-relaxed text-[#8B98A5]">Firebase 설정이 없어 실시간 취합은 꺼져 있습니다. 오른쪽 '결과 코드 붙여넣기'로 취합하거나, 파일 상단 FIREBASE_CONFIG를 설정하세요.</p>)}
+              {connErr && <p className="mt-2 text-[12px] text-[#F87171] leading-snug">{connErr}</p>}
+            </div>
+            <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4">
+              <div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">결과 코드 붙여넣기 (오프라인 취합)</div>
+              <div className="flex items-center gap-2"><input value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder="모둠이 보낸 DGK1:... 코드 붙여넣기" className="w-full rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-3 py-2.5 text-[14px] text-[#E6EDF3] placeholder:text-[#8B98A5]/60 outline-none focus:border-[#22D3EE]" /><button onClick={addPasted} className="rounded-xl border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-4 py-2.5 text-[14px] font-medium text-[#22D3EE] hover:bg-[#22D3EE]/20 transition-colors whitespace-nowrap">추가</button></div>
+            </div>
+          </div>
+
+          {groups.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#1F2A37] bg-[#131A24] p-12 text-center text-[#8B98A5]"><IconUsers className="w-10 h-10 mx-auto mb-3 text-[#1F2A37]" /><p className="text-[15px]">아직 제출한 모둠이 없습니다.</p><p className="text-[13px] mt-1">{AGG_ENABLED ? "세션 코드로 접속하면 모둠이 끝낼 때마다 자동으로 나타납니다." : "모둠 결과 코드를 붙여넣어 추가하세요."}</p></div>
+          ) : (
+            <>
+              {/* 요약 테이블 */}
+              <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3"><h2 className="text-[16px] font-semibold text-[#E6EDF3]">모둠 요약</h2><button onClick={clearAll} className="font-mono text-[12px] text-[#8B98A5] hover:text-[#F87171]">전체 지우기</button></div>
+                <div className="overflow-x-auto"><table className="w-full text-left border-collapse min-w-[560px]">
+                  <thead><tr className="font-mono text-[11px] text-[#8B98A5] border-b border-[#1F2A37]"><th className="py-2 pr-2 font-normal">모둠</th><th className="py-2 px-2 font-normal">점수</th><th className="py-2 px-2 font-normal">등급</th><th className="py-2 px-2 font-normal">정확도</th><th className="py-2 px-2 font-normal">툴킷</th><th className="py-2 pl-2 font-normal">조원</th></tr></thead>
+                  <tbody>{groups.map((g, i) => { const gr = getGrade(g.score); const usage = Math.round((g.toolkitsUsed / (STAGES.length * 3)) * 100); return (<tr key={i} className="border-b border-[#1F2A37]/60 last:border-0"><td className="py-2.5 pr-2 text-[14px] font-medium text-[#E6EDF3]">{g.group}</td><td className="py-2.5 px-2 font-mono text-[15px] font-bold" style={{ color: gr.color }}>{g.score}</td><td className="py-2.5 px-2 text-[13px]" style={{ color: gr.color }}>{g.grade}</td><td className="py-2.5 px-2 font-mono text-[13px] text-[#34D399]">{g.correctCount}/{STAGES.length}</td><td className={"py-2.5 px-2 font-mono text-[13px] " + (usage < 33 ? "text-[#F87171]" : "text-[#8B98A5]")}>{usage}%</td><td className="py-2.5 pl-2 text-[12px] text-[#8B98A5] truncate max-w-[160px]">{g.members || "-"}</td></tr>); })}</tbody>
+                </table></div>
+              </div>
+
+              {/* 스테이지별 근거 비교 (다같이 보기) */}
+              <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
+                <h2 className="text-[16px] font-semibold text-[#E6EDF3] mb-1">스테이지별 판단 근거 비교</h2>
+                <p className="text-[13px] text-[#8B98A5] mb-3">모둠마다 왜 그렇게 판단했는지 나란히 보며 함께 이야기해 보세요.</p>
+                <div className="space-y-2.5">
+                  {STAGES.map((st, si) => {
+                    const open = openStage === si;
+                    return (
+                      <div key={st.id} className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
+                        <button onClick={() => setOpenStage(open ? -1 : si)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#131A24] transition-colors">
+                          <span className="font-mono text-[12px] text-[#22D3EE]">S{st.id}</span>
+                          <span className="flex-1 text-[14px] font-medium text-[#E6EDF3] truncate">{st.title}</span>
+                          <span className={"font-mono text-[12px] font-bold " + (st.verdict === "REAL" ? "text-[#34D399]" : "text-[#F87171]")}>정답 {st.verdict}</span>
+                          <IconChevron className={"w-5 h-5 text-[#8B98A5] transition-transform " + (open ? "rotate-180" : "")} />
+                        </button>
+                        {open && (
+                          <div className="px-4 pb-4 pt-1 border-t border-[#1F2A37] space-y-2.5">
+                            {groups.map((g, gi) => { const s = (g.stages || []).find((x) => x.id === st.id); if (!s) return null; return (
+                              <div key={gi} className="rounded-lg border border-[#1F2A37] bg-[#131A24] p-3">
+                                <div className="flex items-center gap-2 mb-1"><span className="text-[13px] font-semibold text-[#E6EDF3]">{g.group}</span><span className={"font-mono text-[11px] px-1.5 py-0.5 rounded border " + (s.choice === s.answer ? "text-[#34D399] border-[#34D399]/40" : "text-[#F87171] border-[#F87171]/40")}>{s.choice} {s.choice === s.answer ? "정답" : "오답"}</span></div>
+                                <p className="text-[13px] leading-relaxed text-[#E6EDF3]/90"><span className="text-[#8B98A5]">근거:</span> {s.basis || "(미작성)"}</p>
+                                {s.reflection ? <p className="mt-1 text-[12px] leading-relaxed text-[#8B98A5]">성찰: {s.reflection}</p> : null}
+                              </div>
+                            ); })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+      );
+    }
+
+    /* ===================== 루트 앱 ===================== */
+    function App() {
+      const initial = (typeof window !== "undefined" && window.location && window.location.hash.replace("#", "") === "teacher") ? "teacher" : "intro";
+      const [screen, setScreen] = useState(initial);
+      const [visible, setVisible] = useState(true);
+      const [player, setPlayer] = useState(null);
+      const [summary, setSummary] = useState(null);
+      const [runId, setRunId] = useState(0);
+      const timerRef = useRef(null);
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      useEffect(() => () => clearTimeout(timerRef.current), []);
+      function goTo(next) { if (reduceMotion) { setScreen(next); window.scrollTo(0, 0); return; } setVisible(false); clearTimeout(timerRef.current); timerRef.current = setTimeout(() => { setScreen(next); window.scrollTo(0, 0); requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true))); }, 200); }
+      function handleStart(info) { setPlayer(info); setSummary(null); setRunId((n) => n + 1); goTo("playing"); }
+      function handleFinish(result) { setSummary(result); goTo("result"); }
+      function handleRetry() { setSummary(null); setRunId((n) => n + 1); goTo("playing"); }
+      function handleHome() { setPlayer(null); setSummary(null); goTo("intro"); }
+      function handleTeacher() { goTo("teacher"); }
+      return (
+        <div className="min-h-screen flex flex-col font-sans">
+          <ConsoleHeader onTeacher={handleTeacher} showTeacher={screen === "intro"} />
+          <div className={"flex-1 transition-opacity duration-200 " + (visible ? "opacity-100" : "opacity-0")}>
+            {screen === "intro" && <IntroScreen onStart={handleStart} onTeacher={handleTeacher} />}
+            {screen === "playing" && <GameScreen key={runId} player={player} onFinish={handleFinish} />}
+            {screen === "result" && <ResultScreen player={player} summary={summary} onRetry={handleRetry} onHome={handleHome} />}
+            {screen === "teacher" && <TeacherDashboard onBack={handleHome} />}
+          </div>
+          <footer className="border-t border-[#1F2A37]"><div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-3 flex items-center justify-between font-mono text-[12px] text-[#8B98A5]"><span>디지털 게이트키퍼 · 교육용 시뮬레이션</span><span className="hidden sm:inline">등장 인물·단체·언론은 모두 가상입니다</span></div></footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<React.Fragment><div className="console-overlay" aria-hidden="true"></div><App /></React.Fragment>);
+  </script>
+
+  <script>
+    window.addEventListener("load", function () { setTimeout(function () { var loaded = window.React && window.ReactDOM && window.Babel; var root = document.getElementById("root"); if (!loaded || !root || root.children.length === 0) { var fb = document.getElementById("offline-fallback"); if (fb) fb.style.display = "grid"; } }, 1200); });
+  </script>
+</body>
+</html>
