@@ -55,6 +55,23 @@
     .scan-line { animation: scanMove 0.8s linear infinite; }
     @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
     .blink { animation: blink 1s step-start infinite; }
+    /* 가상 영상(SVG) 애니메이션 */
+    @keyframes vidTalk { 0%,100% { transform: scaleY(0.3); } 50% { transform: scaleY(1.6); } }
+    @keyframes vidBlink { 0%,90%,100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+    @keyframes vidBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes vidEq { 0%,100% { transform: scaleY(0.22); } 50% { transform: scaleY(1); } }
+    @keyframes vidScan { 0% { top: -20%; } 100% { top: 116%; } }
+    .vhead, .vmouth, .veye, .veq { transform-box: fill-box; }
+    .vhead { transform-origin: center; }
+    .vmouth { transform-origin: center; }
+    .veye { transform-origin: center; }
+    .veq { transform-origin: bottom; }
+    .vscan { position: absolute; left: 0; right: 0; height: 16%; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(34,211,238,0.08), transparent); }
+    .vid.playing .vhead { animation: vidBob 3.2s ease-in-out infinite; }
+    .vid.playing .vmouth { animation: vidTalk 0.3s ease-in-out infinite; }
+    .vid.playing .veye { animation: vidBlink 4s infinite; }
+    .vid.playing .veq { animation: vidEq 0.8s ease-in-out infinite; }
+    .vid.playing .vscan { animation: vidScan 2.6s linear infinite; }
     @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .modal-in { animation: modalIn 0.22s ease-out; }
     @keyframes livePulse { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
@@ -129,7 +146,7 @@
           reflection: "내가 이 캡처를 단톡방에 '이거 봤어?' 하고 옮기는 행동은, 왜 '구경'이 아니라 '가담'일까? 만약 사진 속 인물이 나였다면 어땠을까?",
         },
       },
-      { id: 3, type: "video", verdict: "REAL",
+      { id: 3, type: "video", verdict: "REAL", videoStyle: "restored",
         title: "AI로 복원한 독립운동가 윤경호 선생 교육 영상",
         sourceLabel: "공영교육방송 EBK · 3·1운동 105주년 기획 · 복수 언론 보도",
         contentBody: "공영교육방송 EBK가 3·1운동 105주년을 맞아 독립운동가 윤경호 선생의 생전 모습을 AI로 복원한 4분 분량 교육 영상을 공개했다. 흑백 사진 한 장만 남아 있던 선생이 영상 속에서 자연스럽게 미소 짓고 손을 움직인다. 화면 하단에는 'AI 복원 영상'이라는 문구가 상시 표시되며, 국가기록원 소장 원본 사진과 유족 동의 사실이 영상 설명란에 함께 안내된다. 여러 언론이 동일한 내용으로 보도했다.",
@@ -155,6 +172,7 @@
         title: "하루 8분, 특정 주파수 소리로 기억력 27% 향상되는 과학적 이유",
         sourceLabel: "개인 과학 블로그 · 공유 4천 회 · 원문 링크 없음",
         author: "브레인핵연구소", date: "2026-05-11",
+        chart: { caption: "그림 1. 주파수 청취군의 변화 — 그래프만 있을 뿐 원자료·측정 방법·출처는 제시되지 않음", bars: [ { label: "기억력 향상", value: 27, max: 30, unit: "%" }, { label: "해마 활성도", value: 1.8, max: 2, unit: "배" }, { label: "실험 참가자", value: 1240, max: 1500, unit: "명" } ] },
         contentBody: "한 과학 블로그에 '하루 8분 특정 주파수 소리를 들으면 기억력이 27% 향상된다'는 글이 올라와 널리 공유되고 있다. 글은 '국제신경과학회지에 실린 2024년 연구'를 인용하며, 실험 참가자 1,240명, 해마 활성도 1.8배 증가 같은 구체적 수치를 제시한다. 문장은 매끄럽고 전문 용어가 많아 신뢰감을 준다. 하지만 인용한 논문의 제목이나 저자 이름, 원문 링크는 글 어디에도 적혀 있지 않다.",
         references: [ "[1] 국제신경과학회지(Journal of Neural Frontiers), 제12권, 2024. — DOI 조회 불가", "[2] '주파수 청각 자극과 해마 활성도' 연구팀, 2024. — 원문 링크 없음", "[3] 뇌인지리뷰 온라인판, 2024. — 해당 학술지 검색 결과 없음" ],
         toolkit: {
@@ -425,13 +443,45 @@
       function toggle() { if (!playing) { if (idx < 0 || idx >= lines.length - 1) setIdx(0); setPlaying(true); } else setPlaying(false); }
       const shown = Math.max(0, idx); const progress = idx < 0 ? 0 : ((idx + 1) / lines.length) * 100;
       const cur = idx < 0 ? "00:00" : "00:" + String(Math.round((progress / 100) * 45)).padStart(2, "0");
+      const restored = stage.videoStyle === "restored";
       return (
-        <div className="relative w-full rounded-xl overflow-hidden border border-[#1F2A37] bg-black" style={{ aspectRatio: "16 / 9" }}>
-          <div className="absolute inset-0 flex items-center justify-center"><div className="text-[#1F2A37]"><Svg className="w-24 h-24"><circle cx="12" cy="9" r="4" /><path d="M4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5" /></Svg></div></div>
+        <div className={"vid relative w-full rounded-xl overflow-hidden border border-[#1F2A37] bg-black" + (playing ? " playing" : "")} style={{ aspectRatio: "16 / 9" }}>
+          {/* 배경 */}
+          <div className="absolute inset-0" style={{ background: restored ? "radial-gradient(120% 100% at 50% 32%, #241a10 0%, #0a0703 72%)" : "radial-gradient(120% 100% at 50% 32%, #10202f 0%, #05080d 72%)" }} aria-hidden="true"></div>
+          {/* 움직이는 인물 (가상 영상 · 전부 SVG로 그림) */}
+          <div className="absolute inset-0 flex items-end justify-center" style={{ filter: restored ? "sepia(0.6) contrast(1.05) brightness(1.05)" : "none" }} aria-hidden="true">
+            <svg viewBox="0 0 200 132" preserveAspectRatio="xMidYMax meet" className="h-[86%]">
+              <path d="M34 132 Q34 97 73 92 L127 92 Q166 97 166 132 Z" fill="#161f2b" />
+              <rect x="90" y="80" width="20" height="15" fill="#1e2b3a" />
+              <g className="vhead">
+                <ellipse cx="100" cy="53" rx="30" ry="34" fill="#141c26" />
+                <ellipse cx="100" cy="55" rx="27" ry="31" fill="#27384c" />
+                <path d="M72 52 Q74 25 100 25 Q126 25 128 52 Q116 41 100 41 Q84 41 72 52 Z" fill="#141c26" />
+                <ellipse className="veye" cx="88" cy="53" rx="3" ry="3.4" fill="#05080d" />
+                <ellipse className="veye" cx="112" cy="53" rx="3" ry="3.4" fill="#05080d" />
+                <path d="M100 56 l-3 9 h6 z" fill="rgba(0,0,0,0.28)" />
+                <ellipse className="vmouth" cx="100" cy="74" rx="9" ry="2.6" fill="#05080d" />
+              </g>
+            </svg>
+          </div>
+          {/* 스캔 라인(재생 중 이동) */}
+          <div className="vscan" style={{ top: "-20%" }} aria-hidden="true"></div>
+          {/* 오디오 파형(재생 중) */}
+          {playing && (
+            <div className="absolute left-4 right-4 bottom-[70px] h-5 flex items-end justify-center gap-[3px] opacity-70" aria-hidden="true">
+              {Array.from({ length: 24 }).map((_, i) => (<span key={i} className="veq w-[3px] rounded-sm bg-[#22D3EE]/60" style={{ height: "100%", animationDelay: (i * 0.05) + "s" }} />))}
+            </div>
+          )}
+          {/* 라벨 */}
           <div className="absolute top-3 left-1/2 -translate-x-1/2"><span className="font-mono text-[11px] tracking-wider text-[#8B98A5] bg-black/60 border border-[#1F2A37] rounded px-2 py-1">[영상 시뮬레이션 — 실제 영상 아님]</span></div>
           {playing && (<div className="absolute top-3 left-3 flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#F87171] blink" aria-hidden="true"></span><span className="font-mono text-[11px] text-[#E6EDF3]">REC</span></div>)}
-          <div className="absolute left-0 right-0 bottom-14 px-4"><p className="mx-auto max-w-[85%] text-center text-[16px] sm:text-[17px] leading-relaxed text-[#E6EDF3]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }} aria-live="polite">{idx < 0 ? "재생 버튼을 눌러 자막을 확인하세요." : lines[shown]}</p></div>
-          <div className="absolute left-0 right-0 bottom-0 px-3 pb-3 pt-6 bg-gradient-to-t from-black/80 to-transparent">
+          {restored && (<div className="absolute bottom-[54px] right-3 flex items-center gap-1 font-mono text-[11px] text-[#E6EDF3]/85 bg-black/45 border border-white/15 rounded px-2 py-0.5"><IconShield className="w-3.5 h-3.5" />AI 복원</div>)}
+          {/* 자막 */}
+          <div className="absolute left-0 right-0 bottom-14 px-4"><p className="mx-auto max-w-[85%] text-center text-[16px] sm:text-[17px] leading-relaxed text-[#E6EDF3]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.95)" }} aria-live="polite">{idx < 0 ? "재생 버튼을 눌러 영상을 확인하세요." : lines[shown]}</p></div>
+          {/* 일시정지 시 중앙 재생 버튼 */}
+          {!playing && (<button onClick={toggle} className="absolute inset-0 flex items-center justify-center group" aria-label="재생"><span className="w-16 h-16 grid place-items-center rounded-full bg-black/45 border border-white/25 text-white group-hover:bg-[#22D3EE] group-hover:text-[#0A0E14] transition-colors backdrop-blur-sm"><IconPlay className="w-8 h-8" /></span></button>)}
+          {/* 컨트롤 바 */}
+          <div className="absolute left-0 right-0 bottom-0 px-3 pb-3 pt-6 bg-gradient-to-t from-black/85 to-transparent">
             <div className="flex items-center gap-3">
               <button onClick={toggle} className="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-[#22D3EE] text-[#0A0E14] hover:bg-[#67E8F9] transition-colors" aria-label={playing ? "일시정지" : "재생"}>{playing ? <IconPause className="w-5 h-5" /> : <IconPlay className="w-5 h-5" />}</button>
               <div className="flex-1 h-1.5 rounded-full bg-[#1F2A37] overflow-hidden"><div className="h-full bg-[#22D3EE] transition-all duration-300" style={{ width: progress + "%" }} /></div>
@@ -447,10 +497,36 @@
       return (
         <div className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1F2A37]"><div className="w-9 h-9 rounded-full bg-[#1F2A37] grid place-items-center text-[#8B98A5]"><IconUser className="w-5 h-5" /></div><div className="min-w-0"><div className="text-[14px] font-medium text-[#E6EDF3] truncate">@익명_제보_{stage.id}</div><div className="font-mono text-[11px] text-[#8B98A5] truncate">{stage.sourceLabel}</div></div></div>
-          <div className="relative w-full border-b border-[#1F2A37]" style={{ aspectRatio: "4 / 3", backgroundImage: "repeating-linear-gradient(45deg, #131A24 0 12px, #0F1620 12px 24px)" }}>
-            <div className="absolute top-3 left-1/2 -translate-x-1/2"><span className="font-mono text-[11px] tracking-wider text-[#8B98A5] bg-black/60 border border-[#1F2A37] rounded px-2 py-1">[이미지 시뮬레이션]</span></div>
-            <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"><IconImage className="w-10 h-10 text-[#1F2A37] mb-3" /><p className="max-w-[90%] text-[15px] leading-relaxed text-[#8B98A5]">{stage.contentBody}</p></div>
+          <div className="relative w-full border-b border-[#1F2A37] bg-[#0b1420]" style={{ aspectRatio: "4 / 3" }}>
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10"><span className="font-mono text-[11px] tracking-wider text-[#8B98A5] bg-black/60 border border-[#1F2A37] rounded px-2 py-1">[이미지 시뮬레이션]</span></div>
+            <svg viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full" aria-label="저화질 야간 유출 사진 시뮬레이션">
+              <defs>
+                <radialGradient id="s2night" cx="50%" cy="42%" r="80%"><stop offset="0%" stopColor="#16263a" /><stop offset="100%" stopColor="#070b12" /></radialGradient>
+                <radialGradient id="s2vig" cx="50%" cy="45%" r="72%"><stop offset="55%" stopColor="#000" stopOpacity="0" /><stop offset="100%" stopColor="#000" stopOpacity="0.66" /></radialGradient>
+                <filter id="s2soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.6" /></filter>
+                <filter id="s2bok" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+                <filter id="s2grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter>
+              </defs>
+              <rect width="320" height="240" fill="url(#s2night)" />
+              {/* 배경 보케 가로등 */}
+              <g filter="url(#s2bok)" opacity="0.5"><circle cx="54" cy="58" r="11" fill="#c9a246" /><circle cx="250" cy="48" r="13" fill="#8fb4d6" /><circle cx="292" cy="120" r="9" fill="#c9a246" /></g>
+              {/* 흐릿한 두 인물(저조도) */}
+              <g filter="url(#s2soft)">
+                <g fill="#2b3e54"><ellipse cx="196" cy="114" rx="26" ry="32" /><path d="M158 224 Q158 146 196 142 Q234 146 234 224 Z" /></g>
+                <g fill="#33485f"><ellipse cx="132" cy="120" rx="23" ry="29" /><path d="M100 224 Q100 152 132 148 Q164 152 164 224 Z" /></g>
+                {/* 측광 하이라이트 */}
+                <g fill="#5f83aa" opacity="0.55"><ellipse cx="123" cy="114" rx="9" ry="15" /><ellipse cx="187" cy="108" rx="9" ry="15" /></g>
+              </g>
+              {/* 필름 그레인 */}
+              <rect width="320" height="240" filter="url(#s2grain)" opacity="0.09" />
+              {/* 비네트 */}
+              <rect width="320" height="240" fill="url(#s2vig)" />
+              {/* 카메라 타임스탬프 */}
+              <text x="309" y="230" textAnchor="end" fontFamily="ui-monospace, monospace" fontSize="9" fill="#e2b24a" opacity="0.85">● REC  2026-05-08 23:47</text>
+            </svg>
+            <div className="absolute bottom-2 left-2 text-left"><span className="font-mono text-[10px] text-[#8B98A5] bg-black/50 rounded px-2 py-0.5">겉모습만으로는 판별이 어렵습니다 · 아래 툴킷으로 분석하세요</span></div>
           </div>
+          <div className="px-4 py-3 text-[14px] leading-relaxed text-[#E6EDF3]/90 border-b border-[#1F2A37]">{stage.contentBody}</div>
           <div className="flex items-center gap-5 px-4 py-3 text-[#8B98A5] font-mono text-[13px]"><span className="inline-flex items-center gap-1.5"><IconHeart className="w-4 h-4" />{likes.toLocaleString()}</span><span className="inline-flex items-center gap-1.5"><IconShare className="w-4 h-4" />{shares.toLocaleString()}</span><span className="inline-flex items-center gap-1.5"><IconComment className="w-4 h-4" />{comments.length}</span><span className="ml-auto text-[12px]">방금 전 게시</span></div>
           <div className="px-4 pb-4 space-y-2 border-t border-[#1F2A37] pt-3">{comments.map((c, i) => (<div key={i} className="text-[14px] leading-snug"><span className="font-medium text-[#E6EDF3]">{c.user}</span><span className="text-[#8B98A5]"> · {c.text}</span></div>))}</div>
         </div>
@@ -464,6 +540,20 @@
           <h3 className="text-[19px] sm:text-[21px] font-bold text-[#E6EDF3] leading-snug">{stage.title}</h3>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[12px] text-[#8B98A5]"><span>작성자 {stage.author || "익명"}</span><span aria-hidden="true">·</span><span>{stage.date || "작성일 미상"}</span><span aria-hidden="true">·</span><span>{stage.sourceLabel}</span></div>
           <div className="mt-4 space-y-3">{paragraphs.map((p, i) => (<p key={i} className="text-[16px] leading-relaxed text-[#E6EDF3]/90">{p}</p>))}</div>
+          {stage.chart && (
+            <figure className="mt-5 rounded-xl border border-[#1F2A37] bg-[#0A0E14] p-4">
+              <div className="font-mono text-[11px] tracking-wider text-[#8B98A5] mb-3">[그래프 시뮬레이션]</div>
+              <div className="space-y-2.5">
+                {stage.chart.bars.map((b, i) => { const pct = Math.max(4, Math.min(100, (b.value / b.max) * 100)); return (
+                  <div key={i}>
+                    <div className="flex justify-between text-[12px] mb-1"><span className="text-[#8B98A5]">{b.label}</span><span className="font-mono text-[#E6EDF3]">{b.value}{b.unit}</span></div>
+                    <div className="h-2.5 rounded-full bg-[#131A24] overflow-hidden"><div className="h-full rounded-full bg-[#22D3EE]/70" style={{ width: pct + "%" }} /></div>
+                  </div>
+                ); })}
+              </div>
+              <figcaption className="mt-3 text-[11px] leading-snug text-[#8B98A5]">{stage.chart.caption}</figcaption>
+            </figure>
+          )}
           <div className="mt-6 pt-4 border-t border-[#1F2A37]"><div className="font-mono text-[12px] tracking-wider text-[#8B98A5] mb-2">참고문헌</div>{stage.references && stage.references.length > 0 ? (<ul className="space-y-1.5">{stage.references.map((r, i) => (<li key={i} className="text-[13px] leading-snug text-[#8B98A5]">{r}</li>))}</ul>) : (<p className="text-[13px] text-[#8B98A5]">이 글에는 확인 가능한 참고문헌·원문 링크가 제시되어 있지 않습니다.</p>)}</div>
         </article>
       );
