@@ -259,7 +259,8 @@
     function docIdFor(name) { return (String(name || "group").replace(/[\/#.\[\]$\s]+/g, "_").slice(0, 80)) || "group"; }
     function submitGroup(payload) { return ensureFirebase().then(function (db) { return groupsRef(db, payload.session).doc(docIdFor(payload.group)).set(payload); }); }
     function deleteGroupDocById(session, name) { return ensureFirebase().then(function (db) { return groupsRef(db, session).doc(docIdFor(name)).delete(); }); }
-    function deleteAllGroups(session, names) { return ensureFirebase().then(function (db) { return Promise.all(names.map(function (n) { return groupsRef(db, session).doc(docIdFor(n)).delete().catch(function () {}); })); }); }
+    // 세션의 모든 문서를 '실제로 조회'해서 각각 삭제(문서ID 재구성에 의존하지 않아 확실히 비움)
+    function deleteAllGroups(session) { return ensureFirebase().then(function (db) { return groupsRef(db, session).get().then(function (snap) { var ps = []; snap.forEach(function (d) { ps.push(d.ref.delete().catch(function () {})); }); return Promise.all(ps); }); }); }
 
     /* ===================== 인라인 SVG 아이콘 ===================== */
     const Svg = (props) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props} />);
@@ -371,8 +372,8 @@
                 <button type="submit" disabled={!canStart} className={"w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[16px] font-semibold transition-colors " + (canStart ? "bg-[#22D3EE] text-[#0A0E14] hover:bg-[#67E8F9] cursor-pointer" : "bg-[#1F2A37] text-[#8B98A5] cursor-not-allowed")}>검증 시작 <IconArrow className="w-5 h-5" /></button>
                 <p className="text-center text-[13px] text-[#8B98A5]">{!teamValid ? "모둠명을 2자 이상 입력하세요." : !sessionValid ? "세션 코드를 입력하세요.(교사 안내)" : "개인정보는 저장되지 않습니다."}</p>
               </form>
-              <div className="mt-5 pt-4 border-t border-[#1F2A37] text-center">
-                <button onClick={onTeacher} className="inline-flex items-center gap-1.5 font-mono text-[13px] text-[#8B98A5] hover:text-[#22D3EE] transition-colors"><IconGrid className="w-4 h-4" />교사용 대시보드 열기 →</button>
+              <div className="mt-5 pt-4 border-t border-[#1F2A37]">
+                <button onClick={onTeacher} className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-4 py-3 text-[15px] font-medium text-[#E6EDF3] hover:border-[#22D3EE] transition-colors"><IconGrid className="w-5 h-5 text-[#22D3EE]" />교사용 대시보드 열기</button>
               </div>
             </section>
           </div>
@@ -809,9 +810,8 @@
       function removeAll() {
         if (!groups.length) return;
         if (typeof window !== "undefined" && window.confirm && !window.confirm("수합된 모든 모둠 결과를 완전히 삭제할까요?\n되돌릴 수 없습니다.")) return;
-        var names = groups.map((g) => g.group);
         setManual([]); setFbGroups([]); setSelectedGroup(null);
-        if (AGG_ENABLED) deleteAllGroups(sessionCode, names).catch(function () {});
+        if (AGG_ENABLED) deleteAllGroups(sessionCode).catch(function () {});
       }
 
       // 병합(모둠명 기준, Firebase 우선)
