@@ -258,6 +258,8 @@
     function groupsRef(db, session) { return db.collection(SESSION_COLLECTION).doc(session || "default").collection("groups"); }
     function docIdFor(name) { return (String(name || "group").replace(/[\/#.\[\]$\s]+/g, "_").slice(0, 80)) || "group"; }
     function submitGroup(payload) { return ensureFirebase().then(function (db) { return groupsRef(db, payload.session).doc(docIdFor(payload.group)).set(payload); }); }
+    function deleteGroupDocById(session, name) { return ensureFirebase().then(function (db) { return groupsRef(db, session).doc(docIdFor(name)).delete(); }); }
+    function deleteAllGroups(session, names) { return ensureFirebase().then(function (db) { return Promise.all(names.map(function (n) { return groupsRef(db, session).doc(docIdFor(n)).delete().catch(function () {}); })); }); }
 
     /* ===================== 인라인 SVG 아이콘 ===================== */
     const Svg = (props) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props} />);
@@ -292,6 +294,7 @@
     const IconGrid = ({ className = "w-5 h-5" }) => (<Svg className={className}><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></Svg>);
     const IconSend = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 12l16-7-7 16-2.5-6.5L4 12z" /></Svg>);
     const IconLock = ({ className = "w-5 h-5" }) => (<Svg className={className}><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /><circle cx="12" cy="15.5" r="1.1" /></Svg>);
+    const IconTrash = ({ className = "w-5 h-5" }) => (<Svg className={className}><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M10 11v6M14 11v6" /></Svg>);
 
     /* ===================== 숫자 카운트 애니메이션 훅 ===================== */
     function useCountUp(value, duration = 400) {
@@ -793,7 +796,23 @@
         setManual((prev) => { const byName = {}; prev.forEach((g) => (byName[g.group] = g)); parsed.forEach((g) => (byName[g.group] = g)); return Object.values(byName); });
         setPasteText("");
       }
-      function clearAll() { setManual([]); setFbGroups([]); }
+      const sessionCode = (code || "").trim() || "default";
+      // 개별 모둠 완전 삭제(클라우드 포함)
+      function removeGroup(name) {
+        if (typeof window !== "undefined" && window.confirm && !window.confirm("'" + name + "' 모둠 결과를 완전히 삭제할까요?\n되돌릴 수 없습니다.")) return;
+        setManual((prev) => prev.filter((g) => g.group !== name));
+        setFbGroups((prev) => prev.filter((g) => g.group !== name));
+        if (selectedGroup === name) setSelectedGroup(null);
+        if (AGG_ENABLED) deleteGroupDocById(sessionCode, name).catch(function () {});
+      }
+      // 전체 완전 삭제(클라우드 포함)
+      function removeAll() {
+        if (!groups.length) return;
+        if (typeof window !== "undefined" && window.confirm && !window.confirm("수합된 모든 모둠 결과를 완전히 삭제할까요?\n되돌릴 수 없습니다.")) return;
+        var names = groups.map((g) => g.group);
+        setManual([]); setFbGroups([]); setSelectedGroup(null);
+        if (AGG_ENABLED) deleteAllGroups(sessionCode, names).catch(function () {});
+      }
 
       // 병합(모둠명 기준, Firebase 우선)
       const groups = useMemo(() => { const byName = {}; manual.forEach((g) => (byName[g.group] = g)); fbGroups.forEach((g) => (byName[g.group] = g)); return Object.values(byName).sort((a, b) => String(a.group).localeCompare(String(b.group), "ko")); }, [manual, fbGroups]);
@@ -845,10 +864,10 @@
             <>
               {/* 요약 테이블 */}
               <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-3 mb-3"><div><h2 className="text-[16px] font-semibold text-[#E6EDF3]">모둠 요약</h2><p className="text-[12px] text-[#8B98A5]">모둠(행)을 클릭하면 그 모둠의 답변만 볼 수 있어요.</p></div><button onClick={clearAll} className="font-mono text-[12px] text-[#8B98A5] hover:text-[#F87171] whitespace-nowrap">전체 지우기</button></div>
-                <div className="overflow-x-auto"><table className="w-full text-left border-collapse min-w-[560px]">
-                  <thead><tr className="font-mono text-[11px] text-[#8B98A5] border-b border-[#1F2A37]"><th className="py-2 pr-2 font-normal">모둠</th><th className="py-2 px-2 font-normal">점수</th><th className="py-2 px-2 font-normal">등급</th><th className="py-2 px-2 font-normal">정확도</th><th className="py-2 px-2 font-normal">툴킷</th><th className="py-2 pl-2 font-normal">모둠원</th></tr></thead>
-                  <tbody>{groups.map((g, i) => { const gr = getGrade(g.score); const usage = Math.round((g.toolkitsUsed / (STAGES.length * 3)) * 100); return (<tr key={i} onClick={() => setSelectedGroup(g.group)} className={"cursor-pointer border-b border-[#1F2A37]/60 last:border-0 transition-colors " + (selectedGroup === g.group ? "bg-[#22D3EE]/10" : "hover:bg-[#0A0E14]")}><td className="py-2.5 pr-2 text-[14px] font-medium text-[#E6EDF3]">{g.group}</td><td className="py-2.5 px-2 font-mono text-[15px] font-bold" style={{ color: gr.color }}>{g.score}</td><td className="py-2.5 px-2 text-[13px]" style={{ color: gr.color }}>{g.grade}</td><td className="py-2.5 px-2 font-mono text-[13px] text-[#34D399]">{g.correctCount}/{STAGES.length}</td><td className={"py-2.5 px-2 font-mono text-[13px] " + (usage < 33 ? "text-[#F87171]" : "text-[#8B98A5]")}>{usage}%</td><td className="py-2.5 pl-2 text-[12px] text-[#8B98A5] truncate max-w-[160px]">{g.members || "-"}</td></tr>); })}</tbody>
+                <div className="flex items-start justify-between gap-3 mb-3"><div><h2 className="text-[16px] font-semibold text-[#E6EDF3]">모둠 요약</h2><p className="text-[12px] text-[#8B98A5]">모둠(행)을 클릭하면 그 모둠의 답변만 볼 수 있어요.</p></div><button onClick={removeAll} className="inline-flex items-center gap-1.5 font-mono text-[12px] text-[#8B98A5] hover:text-[#F87171] whitespace-nowrap"><IconTrash className="w-4 h-4" />전체 삭제</button></div>
+                <div className="overflow-x-auto"><table className="w-full text-left border-collapse min-w-[640px]">
+                  <thead><tr className="font-mono text-[11px] text-[#8B98A5] border-b border-[#1F2A37]"><th className="py-2 pr-2 font-normal">모둠</th><th className="py-2 px-2 font-normal">점수</th><th className="py-2 px-2 font-normal">등급</th><th className="py-2 px-2 font-normal">정확도</th><th className="py-2 px-2 font-normal">툴킷</th><th className="py-2 px-2 font-normal">모둠원</th><th className="py-2 pl-2 font-normal text-right">삭제</th></tr></thead>
+                  <tbody>{groups.map((g, i) => { const gr = getGrade(g.score); const usage = Math.round((g.toolkitsUsed / (STAGES.length * 3)) * 100); return (<tr key={i} onClick={() => setSelectedGroup(g.group)} className={"cursor-pointer border-b border-[#1F2A37]/60 last:border-0 transition-colors " + (selectedGroup === g.group ? "bg-[#22D3EE]/10" : "hover:bg-[#0A0E14]")}><td className="py-2.5 pr-2 text-[14px] font-medium text-[#E6EDF3]">{g.group}</td><td className="py-2.5 px-2 font-mono text-[15px] font-bold" style={{ color: gr.color }}>{g.score}</td><td className="py-2.5 px-2 text-[13px]" style={{ color: gr.color }}>{g.grade}</td><td className="py-2.5 px-2 font-mono text-[13px] text-[#34D399]">{g.correctCount}/{STAGES.length}</td><td className={"py-2.5 px-2 font-mono text-[13px] " + (usage < 33 ? "text-[#F87171]" : "text-[#8B98A5]")}>{usage}%</td><td className="py-2.5 px-2 text-[12px] text-[#8B98A5] truncate max-w-[160px]">{g.members || "-"}</td><td className="py-2.5 pl-2 text-right"><button onClick={(e) => { e.stopPropagation(); removeGroup(g.group); }} title="이 모둠 삭제" aria-label={g.group + " 모둠 삭제"} className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-[#8B98A5] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-colors"><IconTrash className="w-4 h-4" /></button></td></tr>); })}</tbody>
                 </table></div>
               </div>
 
@@ -856,7 +875,10 @@
               <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <h2 className="text-[16px] font-semibold text-[#E6EDF3]">{selected ? (selected.group + " 모둠 상세") : "스테이지별 판단 근거 비교"}</h2>
-                  {selected && <button onClick={() => setSelectedGroup(null)} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-[#1F2A37] bg-[#0A0E14] px-3 py-1.5 text-[12px] text-[#8B98A5] hover:border-[#22D3EE] transition-colors"><IconBack className="w-4 h-4" />전체 비교로</button>}
+                  {selected && <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => removeGroup(selected.group)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-1.5 text-[12px] text-[#F87171] hover:bg-[#F87171]/20 transition-colors"><IconTrash className="w-4 h-4" />이 모둠 삭제</button>
+                    <button onClick={() => setSelectedGroup(null)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#1F2A37] bg-[#0A0E14] px-3 py-1.5 text-[12px] text-[#8B98A5] hover:border-[#22D3EE] transition-colors"><IconBack className="w-4 h-4" />전체 비교로</button>
+                  </div>}
                 </div>
                 <p className="text-[13px] text-[#8B98A5] mb-3">{selected ? "이 모둠의 문항별 판별·판단 근거·성찰입니다." : "위 표에서 모둠을 클릭하면 그 모둠만, 선택하지 않으면 모둠끼리 나란히 비교합니다."}</p>
 
