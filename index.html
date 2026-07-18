@@ -770,6 +770,7 @@
       const [openStage, setOpenStage] = useState(0);
       const [showPw, setShowPw] = useState(false);
       const [showPaste, setShowPaste] = useState(false);
+      const [selectedGroup, setSelectedGroup] = useState(null);
       const unsubRef = useRef(null);
 
       useEffect(() => () => { if (unsubRef.current) unsubRef.current(); }, []);
@@ -796,6 +797,7 @@
 
       // 병합(모둠명 기준, Firebase 우선)
       const groups = useMemo(() => { const byName = {}; manual.forEach((g) => (byName[g.group] = g)); fbGroups.forEach((g) => (byName[g.group] = g)); return Object.values(byName).sort((a, b) => String(a.group).localeCompare(String(b.group), "ko")); }, [manual, fbGroups]);
+      const selected = selectedGroup ? groups.find((g) => g.group === selectedGroup) : null;
 
       return (
         <main className="mx-auto max-w-[1200px] px-4 sm:px-6 py-6 space-y-5">
@@ -843,43 +845,69 @@
             <>
               {/* 요약 테이블 */}
               <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-3"><h2 className="text-[16px] font-semibold text-[#E6EDF3]">모둠 요약</h2><button onClick={clearAll} className="font-mono text-[12px] text-[#8B98A5] hover:text-[#F87171]">전체 지우기</button></div>
+                <div className="flex items-start justify-between gap-3 mb-3"><div><h2 className="text-[16px] font-semibold text-[#E6EDF3]">모둠 요약</h2><p className="text-[12px] text-[#8B98A5]">모둠(행)을 클릭하면 그 모둠의 답변만 볼 수 있어요.</p></div><button onClick={clearAll} className="font-mono text-[12px] text-[#8B98A5] hover:text-[#F87171] whitespace-nowrap">전체 지우기</button></div>
                 <div className="overflow-x-auto"><table className="w-full text-left border-collapse min-w-[560px]">
                   <thead><tr className="font-mono text-[11px] text-[#8B98A5] border-b border-[#1F2A37]"><th className="py-2 pr-2 font-normal">모둠</th><th className="py-2 px-2 font-normal">점수</th><th className="py-2 px-2 font-normal">등급</th><th className="py-2 px-2 font-normal">정확도</th><th className="py-2 px-2 font-normal">툴킷</th><th className="py-2 pl-2 font-normal">모둠원</th></tr></thead>
-                  <tbody>{groups.map((g, i) => { const gr = getGrade(g.score); const usage = Math.round((g.toolkitsUsed / (STAGES.length * 3)) * 100); return (<tr key={i} className="border-b border-[#1F2A37]/60 last:border-0"><td className="py-2.5 pr-2 text-[14px] font-medium text-[#E6EDF3]">{g.group}</td><td className="py-2.5 px-2 font-mono text-[15px] font-bold" style={{ color: gr.color }}>{g.score}</td><td className="py-2.5 px-2 text-[13px]" style={{ color: gr.color }}>{g.grade}</td><td className="py-2.5 px-2 font-mono text-[13px] text-[#34D399]">{g.correctCount}/{STAGES.length}</td><td className={"py-2.5 px-2 font-mono text-[13px] " + (usage < 33 ? "text-[#F87171]" : "text-[#8B98A5]")}>{usage}%</td><td className="py-2.5 pl-2 text-[12px] text-[#8B98A5] truncate max-w-[160px]">{g.members || "-"}</td></tr>); })}</tbody>
+                  <tbody>{groups.map((g, i) => { const gr = getGrade(g.score); const usage = Math.round((g.toolkitsUsed / (STAGES.length * 3)) * 100); return (<tr key={i} onClick={() => setSelectedGroup(g.group)} className={"cursor-pointer border-b border-[#1F2A37]/60 last:border-0 transition-colors " + (selectedGroup === g.group ? "bg-[#22D3EE]/10" : "hover:bg-[#0A0E14]")}><td className="py-2.5 pr-2 text-[14px] font-medium text-[#E6EDF3]">{g.group}</td><td className="py-2.5 px-2 font-mono text-[15px] font-bold" style={{ color: gr.color }}>{g.score}</td><td className="py-2.5 px-2 text-[13px]" style={{ color: gr.color }}>{g.grade}</td><td className="py-2.5 px-2 font-mono text-[13px] text-[#34D399]">{g.correctCount}/{STAGES.length}</td><td className={"py-2.5 px-2 font-mono text-[13px] " + (usage < 33 ? "text-[#F87171]" : "text-[#8B98A5]")}>{usage}%</td><td className="py-2.5 pl-2 text-[12px] text-[#8B98A5] truncate max-w-[160px]">{g.members || "-"}</td></tr>); })}</tbody>
                 </table></div>
               </div>
 
-              {/* 스테이지별 근거 비교 (다같이 보기) */}
+              {/* 스테이지별: 모둠 선택 시 그 모둠만, 아니면 전체 비교 */}
               <div className="rounded-2xl border border-[#1F2A37] bg-[#131A24] p-4 sm:p-5">
-                <h2 className="text-[16px] font-semibold text-[#E6EDF3] mb-1">스테이지별 판단 근거 비교</h2>
-                <p className="text-[13px] text-[#8B98A5] mb-3">모둠마다 왜 그렇게 판단했는지 나란히 보며 함께 이야기해 보세요.</p>
-                <div className="space-y-2.5">
-                  {STAGES.map((st, si) => {
-                    const open = openStage === si;
-                    return (
-                      <div key={st.id} className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
-                        <button onClick={() => setOpenStage(open ? -1 : si)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#131A24] transition-colors">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <h2 className="text-[16px] font-semibold text-[#E6EDF3]">{selected ? (selected.group + " 모둠 상세") : "스테이지별 판단 근거 비교"}</h2>
+                  {selected && <button onClick={() => setSelectedGroup(null)} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-[#1F2A37] bg-[#0A0E14] px-3 py-1.5 text-[12px] text-[#8B98A5] hover:border-[#22D3EE] transition-colors"><IconBack className="w-4 h-4" />전체 비교로</button>}
+                </div>
+                <p className="text-[13px] text-[#8B98A5] mb-3">{selected ? "이 모둠의 문항별 판별·판단 근거·성찰입니다." : "위 표에서 모둠을 클릭하면 그 모둠만, 선택하지 않으면 모둠끼리 나란히 비교합니다."}</p>
+
+                {selected ? (
+                  <div className="space-y-2.5">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-[#1F2A37] bg-[#0A0E14] px-4 py-3 font-mono text-[12px]">
+                      <span style={{ color: getGrade(selected.score).color }}>{selected.score}점 · {selected.grade}</span>
+                      <span className="text-[#34D399]">정답 {selected.correctCount}/{STAGES.length}</span>
+                      <span className="text-[#8B98A5]">툴킷 {Math.round((selected.toolkitsUsed / (STAGES.length * 3)) * 100)}%</span>
+                      {selected.members ? <span className="text-[#8B98A5]">모둠원 {selected.members}</span> : null}
+                    </div>
+                    {STAGES.map((st) => { const s = (selected.stages || []).find((x) => x.id === st.id); return (
+                      <div key={st.id} className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] p-3.5">
+                        <div className="flex items-center gap-2 mb-1.5">
                           <span className="font-mono text-[12px] text-[#22D3EE]">S{st.id}</span>
                           <span className="flex-1 text-[14px] font-medium text-[#E6EDF3] truncate">{st.title}</span>
                           <span className={"font-mono text-[12px] font-bold " + (st.verdict === "REAL" ? "text-[#34D399]" : "text-[#F87171]")}>정답 {st.verdict}</span>
-                          <IconChevron className={"w-5 h-5 text-[#8B98A5] transition-transform " + (open ? "rotate-180" : "")} />
-                        </button>
-                        {open && (
-                          <div className="px-4 pb-4 pt-1 border-t border-[#1F2A37] space-y-2.5">
-                            {groups.map((g, gi) => { const s = (g.stages || []).find((x) => x.id === st.id); if (!s) return null; return (
-                              <div key={gi} className="rounded-lg border border-[#1F2A37] bg-[#131A24] p-3">
-                                <div className="flex items-center gap-2 mb-1"><span className="text-[13px] font-semibold text-[#E6EDF3]">{g.group}</span><span className={"font-mono text-[11px] px-1.5 py-0.5 rounded border " + (s.choice === s.answer ? "text-[#34D399] border-[#34D399]/40" : "text-[#F87171] border-[#F87171]/40")}>{s.choice} {s.choice === s.answer ? "정답" : "오답"}</span></div>
-                                <p className="text-[13px] leading-relaxed text-[#E6EDF3]/90"><span className="text-[#8B98A5]">근거:</span> {s.basis || "(미작성)"}</p>
-                                {s.reflection ? <p className="mt-1 text-[12px] leading-relaxed text-[#8B98A5]">성찰: {s.reflection}</p> : null}
-                              </div>
-                            ); })}
-                          </div>
-                        )}
+                          {s ? <span className={"font-mono text-[11px] px-1.5 py-0.5 rounded border " + (s.choice === s.answer ? "text-[#34D399] border-[#34D399]/40" : "text-[#F87171] border-[#F87171]/40")}>{s.choice} {s.choice === s.answer ? "정답" : "오답"}</span> : null}
+                        </div>
+                        {s ? (<><p className="text-[13px] leading-relaxed text-[#E6EDF3]/90"><span className="text-[#8B98A5]">근거:</span> {s.basis || "(미작성)"}</p>{s.reflection ? <p className="mt-1 text-[12px] leading-relaxed text-[#8B98A5]">성찰: {s.reflection}</p> : null}</>) : <p className="text-[13px] text-[#8B98A5]">이 문항 기록 없음</p>}
                       </div>
-                    );
-                  })}
-                </div>
+                    ); })}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {STAGES.map((st, si) => {
+                      const open = openStage === si;
+                      return (
+                        <div key={st.id} className="rounded-xl border border-[#1F2A37] bg-[#0A0E14] overflow-hidden">
+                          <button onClick={() => setOpenStage(open ? -1 : si)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#131A24] transition-colors">
+                            <span className="font-mono text-[12px] text-[#22D3EE]">S{st.id}</span>
+                            <span className="flex-1 text-[14px] font-medium text-[#E6EDF3] truncate">{st.title}</span>
+                            <span className={"font-mono text-[12px] font-bold " + (st.verdict === "REAL" ? "text-[#34D399]" : "text-[#F87171]")}>정답 {st.verdict}</span>
+                            <IconChevron className={"w-5 h-5 text-[#8B98A5] transition-transform " + (open ? "rotate-180" : "")} />
+                          </button>
+                          {open && (
+                            <div className="px-4 pb-4 pt-1 border-t border-[#1F2A37] space-y-2.5">
+                              {groups.map((g, gi) => { const s = (g.stages || []).find((x) => x.id === st.id); if (!s) return null; return (
+                                <button key={gi} onClick={() => setSelectedGroup(g.group)} className="w-full text-left rounded-lg border border-[#1F2A37] bg-[#131A24] p-3 hover:border-[#22D3EE]/50 transition-colors">
+                                  <div className="flex items-center gap-2 mb-1"><span className="text-[13px] font-semibold text-[#E6EDF3]">{g.group}</span><span className={"font-mono text-[11px] px-1.5 py-0.5 rounded border " + (s.choice === s.answer ? "text-[#34D399] border-[#34D399]/40" : "text-[#F87171] border-[#F87171]/40")}>{s.choice} {s.choice === s.answer ? "정답" : "오답"}</span></div>
+                                  <p className="text-[13px] leading-relaxed text-[#E6EDF3]/90"><span className="text-[#8B98A5]">근거:</span> {s.basis || "(미작성)"}</p>
+                                  {s.reflection ? <p className="mt-1 text-[12px] leading-relaxed text-[#8B98A5]">성찰: {s.reflection}</p> : null}
+                                </button>
+                              ); })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </>
           )}
